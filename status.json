@@ -1,0 +1,18 @@
+{
+  "execucoes_ok": 1,
+  "execucoes_total": 1,
+  "gerado_em": "2026-10-19T19:59:06",
+  "taxa_sucesso_30d_pct": 100.0,
+  "ultima_execucao": {
+    "error_message": null,
+    "error_type": null,
+    "finished_at": "2026-10-19 19:59:06",
+    "modo": "daily",
+    "run_id": "20261019T195544-c08582",
+    "started_at": "2026-10-19 19:55:44",
+    "status": "success",
+    "trigger": "local"
+  },
+  "ultima_execucao_ok_em": "2026-10-19T19:59:06",
+  "ultima_execucao_ok_run_id": "20261019T195544-c08582"
+}
