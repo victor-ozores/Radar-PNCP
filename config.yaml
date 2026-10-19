@@ -1,0 +1,106 @@
+# Perfil de interesse do Radar. Edite este arquivo para mudar o que o robô procura.
+# Nenhuma alteração de código é necessária.
+#
+# Termos de busca:
+#  - Sem acento e em minúsculas (o robô normaliza o texto do edital antes de comparar).
+#  - Um asterisco no fim de uma palavra aceita qualquer terminação: "obra*" casa com obra, obras.
+#  - Frases com espaço são aceitas: "manutencao predial".
+
+perfil:
+  nome: "Construtora de médio porte (engenharia civil + manutenção predial)"
+  descricao: >
+    Perfil fictício inspirado no setor de orçamentos de uma empresa de engenharia.
+    Calibre os termos com quem trabalha com propostas de verdade.
+
+ingestao:
+  ufs: [SP, RJ, MG, PR]
+  # Códigos de modalidade do PNCP: 4 concorrência eletrônica, 5 concorrência presencial,
+  # 6 pregão eletrônico, 7 pregão presencial. A 8 (dispensa) fica de fora até medir o volume.
+  modalidades: [4, 5, 6, 7]
+  lookback_dias: 3          # busca hoje e os 2 dias anteriores (cobre fim de semana e cron atrasado)
+  tamanho_pagina: 50        # limite da API: 10 a 50
+  intervalo_minimo_s: 4.0   # a API devolve 429 se for acionada rápido demais
+  backoff_429_s: [30, 60, 120]
+  max_tentativas_5xx: 4
+  timeout_s: 60
+  max_paginas_por_serie: 400
+
+filtros:
+  valor_min: 100000
+  valor_max: 20000000
+
+score:
+  termos_fortes:
+    - "obra*"
+    - "reforma*"
+    - "construcao"
+    - "edificac*"
+    - "manutencao predial"
+    - "engenharia"
+    - "instalacoes eletricas"
+    - "instalacoes hidraulicas"
+    - "climatizacao"
+    - "impermeabilizacao"
+    - "pavimentacao"
+    - "demolicao"
+    - "restauro"
+    - "ampliacao"
+  termos_fracos:
+    - "ar condicionado"
+    - "elevador*"
+    - "pintura"
+    - "hidraulic*"
+    - "gerador*"
+    - "subestacao"
+    - "spda"
+    - "extintor*"
+    - "telhado"
+    - "cobertura"
+    - "piso*"
+    - "esquadria*"
+    - "calcada*"
+    - "terraplanagem"
+  termos_negativos:
+    - "medicamento*"
+    - "uniforme*"
+    - "genero* alimenticio*"
+    - "merenda"
+    - "material de expediente"
+    - "material de escritorio"
+    - "combustivel"
+    - "combustiveis"
+    - "passagem* aerea*"
+    - "pneu*"
+    - "material hospitalar"
+    - "insumo* hospitalar*"
+    - "exame* laboratorial*"
+    - "fornecimento de energia"
+  peso_forte: 35
+  teto_fortes: 70
+  peso_fraco: 8
+  teto_fracos: 16
+  penalidade_negativo: 40
+  peso_uf:
+    SP: 10
+    RJ: 8
+    MG: 8
+    PR: 6
+  peso_modalidade:
+    4: 10
+    5: 10
+    6: 5
+    7: 5
+    8: 5
+  bonus_valor_na_faixa: 15
+  penalidade_valor_fora_faixa: 15
+
+alerta:
+  score_minimo: 40
+  top_n: 10                 # quantos editais novos aparecem no resumo
+  dias_prazo_proximo: 7     # "vencem esta semana"
+  max_vencendo: 5
+  enviar_quando_vazio: true # manda uma linha mesmo sem novidades (prova que o robô rodou)
+
+export:
+  dias_historico: 90        # editais publicados nos últimos N dias vão para o CSV do Power BI
+  dias_apos_encerramento: 7 # mantém no CSV editais que encerraram há até N dias

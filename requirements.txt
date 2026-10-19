@@ -1,0 +1,6 @@
+# Versões fixas (reprodutibilidade). Atualize de propósito, rodando os testes.
+httpx==0.28.1
+duckdb==1.5.6
+PyYAML==6.0.3
+pydantic==2.14.1
+tzdata==2026.5

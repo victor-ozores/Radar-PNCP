@@ -1,0 +1,3 @@
+# Fim de linha estável entre Windows e Linux (o GitHub Actions roda em Linux).
+* text=auto eol=lf
+*.parquet binary

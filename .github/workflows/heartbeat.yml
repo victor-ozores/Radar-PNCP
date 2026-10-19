@@ -1,0 +1,48 @@
+name: Vigia (heartbeat)
+
+on:
+  schedule:
+    - cron: "41 */6 * * *" # a cada 6 h, fora do minuto :00
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  vigia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dados (branch data)
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: |
+          pip install -r requirements.txt
+          pip install -e . --no-deps
+
+      - name: Última execução bem-sucedida tem mais de 26 h?
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m radar heartbeat --data-dir data --max-horas 26
+
+      - name: Manter o pipeline diário ativo
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable daily.yml || true

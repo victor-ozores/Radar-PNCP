@@ -1,0 +1,127 @@
+name: Pipeline diário
+
+on:
+  schedule:
+    # 10:17 UTC = 07:17 em Brasília. Evita o minuto :00, quando o cron do GitHub mais atrasa.
+    - cron: "17 10 * * *"
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: "daily (rotina), backfill (janela de datas) ou bootstrap (carga inicial)"
+        type: choice
+        options: [daily, backfill, bootstrap]
+        default: daily
+      desde:
+        description: "backfill: data inicial (AAAA-MM-DD)"
+        required: false
+      ate:
+        description: "backfill: data final (AAAA-MM-DD)"
+        required: false
+      dry_run:
+        description: "Não grava nem envia alertas; só mostra a prévia nos logs"
+        type: boolean
+        default: false
+      simulate_failure:
+        description: "Força uma falha para testar o alerta de erro"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write # grava os dados na branch `data`
+  actions: write # reabilita os agendamentos (ver último passo)
+
+# Nunca duas execuções ao mesmo tempo: evita push concorrente na branch `data`.
+concurrency:
+  group: radar-dados
+  cancel-in-progress: false
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Código (main)
+        uses: actions/checkout@v4
+
+      - name: Dados (branch data)
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: data
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Dependências
+        run: |
+          pip install -r requirements.txt
+          pip install -e . --no-deps
+
+      - name: Executar o pipeline
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MODO: ${{ inputs.modo || 'daily' }}
+          DESDE: ${{ inputs.desde }}
+          ATE: ${{ inputs.ate }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SIMULAR_FALHA: ${{ inputs.simulate_failure }}
+          GATILHO: ${{ github.event_name }}
+        run: |
+          # Entradas passam por variáveis de ambiente (nunca interpoladas no script).
+          args=(--data-dir data --trigger "$GATILHO")
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          case "$MODO" in
+            daily)
+              if [ "$SIMULAR_FALHA" = "true" ]; then args+=(--simulate-failure); fi
+              python -m radar run "${args[@]}" ;;
+            backfill)
+              python -m radar backfill --desde "$DESDE" --ate "$ATE" "${args[@]}" ;;
+            bootstrap)
+              python -m radar bootstrap "${args[@]}" ;;
+          esac
+
+      - name: Publicar dados na branch data
+        # always(): mesmo quando o pipeline falha, o registro da falha (status.json) vai para o repo
+        if: always() && inputs.dry_run != true
+        working-directory: data
+        run: |
+          git config user.name "radar-bot"
+          git config user.email "radar-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Sem mudanças nos dados."
+          else
+            git commit -m "dados: execução ${GITHUB_RUN_ID} ($(date -u +%F))"
+            git push origin HEAD:data || (git pull --rebase origin data && git push origin HEAD:data)
+          fi
+
+      - name: Alerta de falha
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # Se o próprio pacote não instalou, cai para um curl simples.
+          python -m radar notify-failure --data-dir data --run-url "$RUN_URL" \
+            || curl -sS -o /dev/null "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+                 -d chat_id="${TELEGRAM_CHAT_ID}" \
+                 --data-urlencode text="🚨 Radar PNCP falhou antes de registrar a execução: ${RUN_URL}" \
+            || true
+
+      - name: Manter os agendamentos ativos
+        # O GitHub desativa workflows agendados de repositórios públicos sem atividade por 60 dias.
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow enable daily.yml || true
+          gh workflow enable heartbeat.yml || true

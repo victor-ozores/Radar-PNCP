@@ -1,0 +1,23 @@
+# Ambiente
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Segredos: nunca versionar
+.env
+.env.*
+!.env.example
+
+# Dados: vivem na branch `data` (ou em ./data localmente), nunca na main
+data/
+data_local/
+*.duckdb
+*.parquet
+!tests/fixtures/*.parquet
+
+# Power BI (arquivos temporários)
+*.pbix.bak
+.pbi/
