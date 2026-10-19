@@ -26,7 +26,8 @@ log = logging.getLogger("radar")
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload = {
-            "ts": datetime.fromtimestamp(record.created).isoformat(timespec="seconds"),
+            # com deslocamento (+00:00 no GitHub, -03:00 no seu PC): sem ambiguidade entre fusos
+            "ts": datetime.fromtimestamp(record.created).astimezone().isoformat(timespec="seconds"),
             "nivel": record.levelname,
             "msg": record.getMessage(),
             **getattr(record, "ctx", {}),

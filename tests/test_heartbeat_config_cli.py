@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from radar.cli import build_parser, load_dotenv, main
+from radar.cli import JsonFormatter, build_parser, load_dotenv, main
 from radar.config import Config, load_config
 from radar.heartbeat import check_heartbeat
 
@@ -18,6 +18,18 @@ def grava_status(pasta, ok_em: datetime | None):
         json.dumps({"ultima_execucao_ok_em": ok_em.isoformat() if ok_em else None}),
         encoding="utf-8",
     )
+
+
+def test_log_json_traz_o_fuso_no_horario():
+    """No log da nuvem o horário saía em UTC sem aviso, enquanto o run_id usa Brasília."""
+    import logging
+    import re
+
+    rec = logging.LogRecord("radar", logging.INFO, __file__, 1, "olá", None, None)
+    rec.ctx = {"serie": "6/SP"}
+    saida = json.loads(JsonFormatter().format(rec))
+    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d", saida["ts"])
+    assert saida["msg"] == "olá" and saida["serie"] == "6/SP"
 
 
 def test_heartbeat_ok_dentro_do_limite(tmp_path):
