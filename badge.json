@@ -1,6 +1,6 @@
 {
-  "color": "brightgreen",
+  "color": "red",
   "label": "última execução",
-  "message": "19/10 20:59 BRT",
+  "message": "falhou (último ok 19/10 20:59 BRT)",
   "schemaVersion": 1
 }
