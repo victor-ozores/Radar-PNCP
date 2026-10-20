@@ -62,6 +62,7 @@ def test_config_do_repositorio_e_valida(cfg):
         lambda c: c["ingestao"].update(modalidades=[14]),
         lambda c: c["ingestao"].update(tamanho_pagina=100),
         lambda c: c["filtros"].update(valor_min=10, valor_max=5),
+        lambda c: c["alerta"].update(prazo_minimo_dias=7, dias_prazo_proximo=7),
         lambda c: c["score"].update(termos_fortes=[], termos_fracos=[]),
         lambda c: c.update(chave_desconhecida=1),
     ],

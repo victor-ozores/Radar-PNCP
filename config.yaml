@@ -75,6 +75,9 @@ score:
     - "insumo* hospitalar*"
     - "exame* laboratorial*"
     - "fornecimento de energia"
+    # Compra de material (concreto, tintas, ferramentas...) não é obra nem serviço de engenharia.
+    # Medido em 19/10/2026: tira 167 dos 1.685 relevantes (10%), nenhum passa a entrar.
+    - "aquisicao*"
   peso_forte: 35
   teto_fortes: 70
   peso_fraco: 8
@@ -97,7 +100,8 @@ score:
 alerta:
   score_minimo: 40
   top_n: 10                 # quantos editais novos aparecem no resumo
-  dias_prazo_proximo: 7     # "vencem esta semana"
+  dias_prazo_proximo: 7     # "vencem esta semana": prazo até daqui a 7 dias
+  prazo_minimo_dias: 2      # ...mas só os que ainda dão tempo de montar proposta (2 dias ou mais)
   max_vencendo: 5
   enviar_quando_vazio: true # manda uma linha mesmo sem novidades (prova que o robô rodou)
 

@@ -48,7 +48,7 @@ flowchart LR
 2. **Limpa** cada registro: guarda só os campos de uma lista permitida e remove CPF, e-mail e telefone do texto livre.
 3. **Grava** em Parquet particionado por dia de publicação. Rodar duas vezes a mesma janela não muda nenhum byte.
 4. **Pontua** de 0 a 100 com regras do `config.yaml` e explica o motivo de cada nota.
-5. **Avisa** no Telegram: novos relevantes, prazos chegando, e um aviso se alguma busca falhou.
+5. **Avisa** no Telegram: novos relevantes, os prazos que vencem em 2 a 7 dias (os que ainda dão tempo de montar proposta; ajustável em `alerta.prazo_minimo_dias`), e um aviso se alguma busca falhou.
 6. **Se monitora**: cada execução vira uma linha em `pipeline_runs`; falha dispara alerta; um vigia confere se o robô rodou nas últimas 26 h.
 
 ## Mude o perfil sem mexer no código

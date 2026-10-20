@@ -95,6 +95,14 @@ def test_digest_dentro_do_limite_do_telegram():
     assert msgs[0].startswith("<b>📡 Radar PNCP · 17/10/2026</b>")
 
 
+def test_titulo_dos_prazos_mostra_a_janela():
+    resumo = Resumo(analisados=10, prazo_min_dias=2, prazo_max_dias=7)
+    com = "\n".join(build_digest([], [item()], resumo, AGORA, "P"))
+    assert "Prazos chegando</b> (vencem em 2 a 7 dias)" in com
+    sem = "\n".join(build_digest([], [item()], Resumo(analisados=10), AGORA, "P"))
+    assert "Prazos chegando</b>" in sem and "vencem em" not in sem
+
+
 def test_digest_vazio_confirma_que_o_robo_rodou():
     msgs = build_digest([], [], Resumo(analisados=412), AGORA, "Perfil")
     assert len(msgs) == 1 and "Nenhum edital novo relevante" in msgs[0] and "412" in msgs[0]

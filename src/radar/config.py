@@ -82,8 +82,17 @@ class Alerta(_Base):
     score_minimo: int = Field(default=40, ge=0, le=100)
     top_n: int = Field(default=10, ge=1, le=30)
     dias_prazo_proximo: int = Field(default=7, ge=1, le=60)
+    # "Prazos chegando" só lista o que ainda dá tempo de disputar: vence entre
+    # `prazo_minimo_dias` e `dias_prazo_proximo` dias a partir da execução.
+    prazo_minimo_dias: int = Field(default=2, ge=0, le=30)
     max_vencendo: int = Field(default=5, ge=0, le=20)
     enviar_quando_vazio: bool = True
+
+    @model_validator(mode="after")
+    def _janela_de_prazo(self) -> Alerta:
+        if self.prazo_minimo_dias >= self.dias_prazo_proximo:
+            raise ValueError("prazo_minimo_dias deve ser menor que dias_prazo_proximo")
+        return self
 
 
 class Export(_Base):

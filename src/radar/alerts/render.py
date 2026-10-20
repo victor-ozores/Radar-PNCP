@@ -26,6 +26,8 @@ class Resumo:
     relevantes_novos: int = 0
     series_total: int = 0
     series_falhas: list[str] = field(default_factory=list)
+    prazo_min_dias: int | None = None  # janela de "Prazos chegando", para o título da seção
+    prazo_max_dias: int | None = None
 
 
 def _br(n: float, casas: int = 1) -> str:
@@ -122,7 +124,10 @@ def build_digest(
     blocos = ["\n".join(topo)]
     blocos += [item_html(i, agora) for i in novos]
     if vencendo:
-        blocos.append("<b>⏳ Prazos chegando</b>")
+        titulo = "<b>⏳ Prazos chegando</b>"
+        if resumo.prazo_min_dias is not None and resumo.prazo_max_dias is not None:
+            titulo += f" (vencem em {resumo.prazo_min_dias} a {resumo.prazo_max_dias} dias)"
+        blocos.append(titulo)
         blocos += [item_html(i, agora) for i in vencendo]
     blocos.append(f"<i>Perfil: {escape(perfil)}</i>")
     return _chunk(blocos)

@@ -96,6 +96,21 @@ def test_acentos_e_caixa_nao_atrapalham(scorer):
     assert r.relevante and any("manutencao predial" in m for m in r.motivos)
 
 
+def test_compra_de_material_nao_vira_relevante(scorer):
+    """Medido em 19/10/2026: 167 dos 1.685 relevantes eram compra de material com 'aquisição'."""
+    compras = [
+        "Registro de preços para aquisição de materiais de construção",
+        # "obra" vinha do nome da secretaria que pediu a compra de tintas
+        "Aquisição de tintas para demarcação viária, atendendo a Secretaria de Serviços e Obras",
+    ]
+    for objeto in compras:
+        r = scorer.score(linha(objeto=objeto), AGORA)
+        assert not r.relevante and "termos de exclusão" in " ".join(r.motivos), objeto
+    # obra de verdade, com vários termos fortes, segue relevante mesmo citando material
+    obra = "Execução de obras de reforma e ampliação, incluindo a aquisição de materiais"
+    assert scorer.score(linha(objeto=obra), AGORA).relevante
+
+
 def test_mao_de_obra_nao_conta_como_obra(scorer):
     """Achado em dados reais (19/10/2026): contratos de limpeza e vigilância trazem 'mão de obra'."""
     limpeza = (

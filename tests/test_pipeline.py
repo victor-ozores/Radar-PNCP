@@ -9,9 +9,17 @@ from datetime import date, datetime, timedelta
 import pytest
 
 from helpers import FakeClient, FakeNotifier, load_sample_items
+from radar.alerts.render import Item
 from radar.audit import RunLog
-from radar.pipeline import PipelineError, RunOptions, plan_series, run_pipeline
+from radar.pipeline import (
+    PipelineError,
+    RunOptions,
+    plan_series,
+    run_pipeline,
+    selecionar_vencendo,
+)
 from radar.pncp_client import PncpRateLimited
+from radar.scoring import ScoreResult
 from radar.store import Store
 
 CPF = re.compile(r"\d{3}\.\d{3}\.\d{3}-\d{2}")
@@ -223,6 +231,28 @@ def test_janela_diaria_cobre_o_lookback(cfg):
     series, ini, fim = plan_series(cfg, RunOptions(data_dir="."), date(2026, 10, 19))
     assert (ini, fim) == (date(2026, 10, 17), date(2026, 10, 19))  # hoje + 2 dias anteriores
     assert len(series) == len(cfg.ingestao.ufs) * len(cfg.ingestao.modalidades)
+
+
+def test_prazos_chegando_so_lista_o_que_ainda_da_tempo_de_disputar(cfg, agora):
+    """No Telegram real, a seção listava editais que venciam em poucas horas."""
+
+    def item(id_, horas, relevante=True):
+        row = {"id": id_, "data_encerramento_proposta": agora + timedelta(hours=horas)}
+        return Item(row, ScoreResult(80, relevante, []))
+
+    assert (cfg.alerta.prazo_minimo_dias, cfg.alerta.dias_prazo_proximo) == (2, 7)
+    candidatos = [
+        item("daqui_5h", 5),  # cedo demais
+        item("daqui_30h", 30),  # cedo demais (menos de 2 dias)
+        item("limite_minimo", 48),
+        item("meio", 100),
+        item("limite_maximo", 168),
+        item("longe_demais", 169),
+        item("irrelevante", 100, relevante=False),
+        item("ja_no_resumo", 100),
+    ]
+    escolhidos = selecionar_vencendo(candidatos, agora, cfg.alerta, {"ja_no_resumo"})
+    assert [i.row["id"] for i in escolhidos] == ["limite_minimo", "meio", "limite_maximo"]
 
 
 def test_alerta_traz_vencendo_sem_repetir_os_novos(tmp_path, cfg_pequena, agora):

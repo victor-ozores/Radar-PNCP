@@ -13,7 +13,7 @@ from typing import Any
 from radar.alerts.render import Item, Resumo, build_digest
 from radar.alerts.telegram import TelegramNotifier
 from radar.audit import RunLog, RunRecord, scrub_secrets, write_status_files
-from radar.config import Config
+from radar.config import Alerta, Config
 from radar.export import export_all
 from radar.normalize import TZ, InvalidRecord, normalize_item
 from radar.pncp_client import PncpClient, PncpError
@@ -270,6 +270,32 @@ def _ordem(item: Item) -> tuple[int, float, str]:
     return (-item.result.score, -(item.row.get("valor_estimado") or 0), item.row["id"])
 
 
+def janela_de_prazo(alerta: Alerta, now: datetime) -> tuple[datetime, datetime]:
+    """Intervalo em que o prazo de propostas precisa cair para entrar em "Prazos chegando"."""
+    return (
+        now + timedelta(days=alerta.prazo_minimo_dias),
+        now + timedelta(days=alerta.dias_prazo_proximo),
+    )
+
+
+def selecionar_vencendo(
+    candidatos: list[Item], now: datetime, alerta: Alerta, ja_no_resumo: set[str]
+) -> list[Item]:
+    """Relevantes que vencem dentro da janela, do prazo mais próximo ao mais distante."""
+    inicio, fim = janela_de_prazo(alerta, now)
+    return sorted(
+        (
+            i
+            for i in candidatos
+            if i.result.relevante
+            and i.row["id"] not in ja_no_resumo
+            and i.row.get("data_encerramento_proposta")
+            and inicio <= i.row["data_encerramento_proposta"] <= fim
+        ),
+        key=lambda i: (i.row["data_encerramento_proposta"], i.row["id"]),
+    )[: alerta.max_vencendo]
+
+
 def _alertar(
     cfg: Config,
     opts: RunOptions,
@@ -292,26 +318,13 @@ def _alertar(
     if opts.dry_run:
         candidatos = [Item(r, scorer.score(r, now)) for r in fetched.values()]
     else:
-        fim_janela = now + timedelta(days=alerta.dias_prazo_proximo)
+        inicio, fim = janela_de_prazo(alerta, now)
         estado = store.current_state(
             "WHERE data_encerramento_proposta >= ? AND data_encerramento_proposta <= ?",
-            [now, fim_janela],
+            [inicio, fim],
         )
         candidatos = [Item(r, scorer.score(r, now)) for r in estado]
-    ja_no_resumo = {i.row["id"] for i in top}
-    vencendo = sorted(
-        (
-            i
-            for i in candidatos
-            if i.result.relevante
-            and i.row["id"] not in ja_no_resumo
-            and i.row.get("data_encerramento_proposta")
-            and now
-            <= i.row["data_encerramento_proposta"]
-            <= now + timedelta(days=alerta.dias_prazo_proximo)
-        ),
-        key=lambda i: (i.row["data_encerramento_proposta"], i.row["id"]),
-    )[: alerta.max_vencendo]
+    vencendo = selecionar_vencendo(candidatos, now, alerta, {i.row["id"] for i in top})
 
     resumo = Resumo(
         analisados=len(fetched),
@@ -319,6 +332,8 @@ def _alertar(
         relevantes_novos=len(relevantes),
         series_total=rec.series_total,
         series_falhas=[f["serie"].split("@")[0] for f in rec.series_failed],
+        prazo_min_dias=alerta.prazo_minimo_dias,
+        prazo_max_dias=alerta.dias_prazo_proximo,
     )
     outcome.itens = top + vencendo
     mensagens: list[str] = []
