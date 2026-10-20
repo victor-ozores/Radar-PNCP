@@ -103,6 +103,26 @@ jobs:
             git push origin HEAD:data || (git pull --rebase origin data && git push origin HEAD:data)
           fi
 
+      - name: Avisar o vigia externo (Healthchecks.io)
+        # Só quando tudo deu certo na rotina diária. Se este aviso parar de chegar, o próprio
+        # Healthchecks alerta por fora do GitHub, inclusive se o agendador do GitHub falhar.
+        if: success() && inputs.dry_run != true && (inputs.modo || 'daily') == 'daily'
+        env:
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+        run: |
+          if [ -z "$HEALTHCHECK_URL" ]; then
+            echo "HEALTHCHECK_URL não configurado; pulando o aviso ao vigia externo."
+            exit 0
+          fi
+          # Falha de rede aqui não derruba o pipeline: o vigia alerta sozinho se o aviso faltar.
+          code=$(curl -sS -m 10 --retry 3 --retry-delay 5 --retry-all-errors \
+                   -o /dev/null -w "%{http_code}" "$HEALTHCHECK_URL" || true)
+          if [ "$code" = "200" ]; then
+            echo "Vigia externo avisado (HTTP 200)."
+          else
+            echo "::warning::Não consegui avisar o vigia externo (HTTP ${code:-sem resposta})."
+          fi
+
       - name: Alerta de falha
         if: failure()
         env:

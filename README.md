@@ -139,6 +139,7 @@ docs/                  setup, qualidade dos dados, metodologia de horas
 * **Falha parcial não derruba o dia:** se uma busca cai, as outras seguem; a execução fica `partial` e o alerta avisa quais buscas falharam.
 * **Alerta de falha:** o workflow manda uma mensagem 🚨 com o link da execução. Se nem o pacote instalar, um `curl` de reserva avisa.
 * **Heartbeat:** a cada 6 h um segundo workflow confere se houve execução bem-sucedida nas últimas 26 h.
+* **Vigia externo:** ao fim de cada execução diária bem-sucedida o robô acessa um endereço do [Healthchecks.io](https://healthchecks.io) (plano gratuito). Se o aviso não chegar no prazo, o próprio serviço alerta, por fora do GitHub. Isso cobre o caso em que o agendador do GitHub para de funcionar e o heartbeat, que também é agendado, para junto.
 * **Agendamento vivo:** o GitHub desativa workflows agendados de repositórios públicos sem atividade por 60 dias; cada execução reabilita os dois workflows pela API.
 * **Evidência pública:** histórico de execuções na aba *Actions* e `pipeline_runs.csv` na branch `data`.
 
@@ -151,6 +152,7 @@ docs/                  setup, qualidade dos dados, metodologia de horas
 | GitHub Actions em repositório público | R$ 0 | Sem limite de minutos em repositório público; execução leva poucos minutos |
 | API do PNCP | R$ 0 | Pública e sem login |
 | Telegram Bot API | R$ 0 | Sem cartão |
+| Healthchecks.io (vigia externo) | R$ 0 | Plano gratuito; usa 1 dos 20 checks. Sem recursos pagos (SMS, ligação) |
 | Armazenamento (Parquet no git) | R$ 0 | Sem banco hospedado; evita serviços que pausam por inatividade |
 
 Armadilhas evitadas de propósito: serviços que exigem cartão, bancos gratuitos que pausam por inatividade e agendadores pagos.
@@ -196,7 +198,7 @@ O score **não usa IA**: é um conjunto de regras determinísticas e auditáveis
 * O score olha só o objeto da compra. Editais com descrição genérica ("serviços diversos") podem escapar.
 * O filtro por UF usa a UF do órgão; o local de execução da obra pode ser outro.
 * Dispensas de licitação (modalidade 8) e outras modalidades ficam fora até o volume ser medido.
-* O horário do cron do GitHub pode atrasar; o vigia cobre execuções que não aconteceram, não atrasos curtos.
+* O horário do cron do GitHub pode atrasar; o vigia cobre execuções que não aconteceram, não atrasos curtos. O vigia externo tolera 3 h de atraso antes de alertar.
 * Editais que mudam depois da publicação só são atualizados enquanto estão na janela de 3 dias; a consulta por data de atualização está prevista.
 * E-mail diário, painel Power BI e registro no Agendador de Tarefas do Windows ainda não foram implementados.
 

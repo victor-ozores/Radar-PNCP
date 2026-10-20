@@ -63,3 +63,19 @@ bloqueada pelo administrador do tenant. Antes de montar o painel:
 
 Fonte dos dados para o painel (pública, sem login):
 `https://raw.githubusercontent.com/victor-ozores/Radar-PNCP/data/export/editais.csv`
+
+## 5. Vigia externo (Healthchecks.io, grátis)
+
+O heartbeat do GitHub também é agendado: se o agendador do GitHub parar, ele para junto. O vigia
+externo cobre isso.
+
+1. Crie uma conta no plano **Hobbyist** (grátis, sem cartão) em healthchecks.io.
+2. Crie um check com **Schedule = Simple**, **Period = 1 day** e **Grace Time = 3 hours**, e ligue a
+   integração de e-mail (ou outra) no check.
+3. Copie o **ping URL** (`https://hc-ping.com/...`) e cadastre como secret `HEALTHCHECK_URL` em
+   *Settings > Secrets and variables > Actions*. **Trate como segredo**: quem tem o endereço pode
+   mandar um aviso falso. Nunca coloque no código, no README ou em commit.
+4. Rode **Pipeline diário** (`modo = daily`). O passo *Avisar o vigia externo* deve terminar com
+   "Vigia externo avisado (HTTP 200)" e o check no site deve ficar verde (*up*).
+
+O aviso só é enviado quando a execução diária termina bem. Sem o secret, o passo é ignorado.
