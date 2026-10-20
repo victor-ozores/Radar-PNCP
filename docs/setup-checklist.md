@@ -70,8 +70,13 @@ O heartbeat do GitHub também é agendado: se o agendador do GitHub parar, ele p
 externo cobre isso.
 
 1. Crie uma conta no plano **Hobbyist** (grátis, sem cartão) em healthchecks.io.
-2. Crie um check com **Schedule = Simple**, **Period = 1 day** e **Grace Time = 3 hours**, e ligue a
-   integração de e-mail (ou outra) no check.
+2. Crie um check com **Schedule = Cron**, **Cron Expression = `17 10 * * *`**, **Time Zone = UTC**
+   (o relógio do GitHub; é 07:17 em Brasília) e **Grace Time = 7 hours**, e ligue a integração de
+   e-mail (ou outra) no check. Prefira Cron a *Simple*: no Simple o prazo conta a partir do último
+   ping, e uma execução manual no meio do dia adiaria o alerta.
+   **Por que 7 h:** na primeira medição (20/10/2026) as execuções agendadas do GitHub chegaram de
+   3 h 09 a 5 h 25 atrasadas. Com 3 h de folga o check ficou DOWN sem falha real. Reveja esse
+   valor depois de algumas semanas, com mais dados.
 3. Copie o **ping URL** (`https://hc-ping.com/...`) e cadastre como secret `HEALTHCHECK_URL` em
    *Settings > Secrets and variables > Actions*. **Trate como segredo**: quem tem o endereço pode
    mandar um aviso falso. Nunca coloque no código, no README ou em commit.

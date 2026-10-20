@@ -1,6 +1,6 @@
 # Radar de Licitações PNCP
 
-> Todo dia às 7h17 um robô lê as licitações novas do governo federal, separa as que combinam com a sua empresa e manda o resumo no seu Telegram. Para o setor de orçamentos de empresas de engenharia e manutenção, que hoje perde horas caçando editais em portais.
+> Todo dia um robô lê as licitações novas do governo federal, separa as que combinam com a sua empresa e manda o resumo no seu Telegram. Para o setor de orçamentos de empresas de engenharia e manutenção, que hoje perde horas caçando editais em portais. Agendado para as 7h17; o GitHub tem entregado de 3 a 5,5 horas depois (veja [Confiabilidade](#confiabilidade)).
 
 [![CI](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/ci.yml/badge.svg)](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/ci.yml)
 [![Pipeline diário](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/daily.yml/badge.svg)](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/daily.yml)
@@ -33,7 +33,7 @@ Nota 100 · Contratação de empresa especializada para a execução de obras de
 
 ```mermaid
 flowchart LR
-    A[GitHub Actions<br/>cron 07:17 + disparo manual] --> B[Cliente PNCP<br/>intervalo, retry, 429]
+    A[GitHub Actions<br/>agendado 07:17 + disparo manual] --> B[Cliente PNCP<br/>intervalo, retry, 429]
     B --> C[Normalização<br/>allowlist + remoção de PII]
     C --> D[(Parquet por dia<br/>consultável com SQL/DuckDB)]
     D --> E[Score por regras<br/>config.yaml]
@@ -89,7 +89,7 @@ Há exemplos em [`queries/`](queries): editais abertos, volume por UF, qualidade
 | Decisão | Por quê |
 |---|---|
 | **DuckDB + Parquet**, sem arquivo `.duckdb` | SQL de verdade, custo zero, sem servidor. Parquet determinístico: reexecutar sem mudança não gera blobs novos no git |
-| **Dados na branch `data`**, código na `main` | A `main` fica limpa; partições antigas são imutáveis; a branch pode ser reescrita (squash) se crescer |
+| **Dados na branch `data`**, código na `main` | A `main` fica limpa; partições antigas são imutáveis; a branch pode ser reescrita (squash) se crescer. Medido em 20/10/2026: um clone novo cresce ~450 KiB por dia de coleta (~160 MB por ano), bem abaixo do 1 GB que o GitHub recomenda para um repositório |
 | **Intervalo de 4 s entre chamadas** + espera de 30/60/120 s no 429 | A API devolve 429 (corpo HTML) após ~8 a 10 chamadas rápidas; medido em 19/10/2026 |
 | **Cliente isolado** em `pncp_client.py` | Só ele conhece URL e parâmetros; trocar de endpoint não espalha mudança |
 | **Upsert por `numeroControlePNCP`** | Editais mudam de status (revogada, suspensa) depois de publicados |
@@ -143,7 +143,9 @@ docs/                  setup, qualidade dos dados, metodologia de horas
 * **Agendamento vivo:** o GitHub desativa workflows agendados de repositórios públicos sem atividade por 60 dias; cada execução reabilita os dois workflows pela API.
 * **Evidência pública:** histórico de execuções na aba *Actions* e `pipeline_runs.csv` na branch `data`.
 
-**(a preencher)** Taxa de sucesso e atraso real do cron após algumas semanas de execução agendada.
+**Horário real (medido em 20/10/2026):** as 5 execuções agendadas do primeiro dia (1 do pipeline e 4 do vigia) começaram de **3 h 09 a 5 h 25 depois** do horário marcado. O pipeline marcado para 07:17 rodou às 12:06 e o alerta chegou às 12:09; nenhuma execução foi pulada. O GitHub documenta que agendamentos podem atrasar sob carga; não investiguei a causa. O Healthchecks.io avisou que o pipeline estava atrasado e se recuperou sozinho quando ele terminou, o que mostra que o vigia externo funciona, mas também que a folga dele (*Grace Time*) precisa ser maior que o atraso observado.
+
+**(a preencher)** Taxa de sucesso e distribuição do atraso após algumas semanas de execução agendada. Por ora são só 5 observações.
 
 ## Custos: por que roda de graça
 
@@ -198,7 +200,8 @@ O score **não usa IA**: é um conjunto de regras determinísticas e auditáveis
 * O score olha só o objeto da compra. Editais com descrição genérica ("serviços diversos") podem escapar.
 * O filtro por UF usa a UF do órgão; o local de execução da obra pode ser outro.
 * Dispensas de licitação (modalidade 8) e outras modalidades ficam fora até o volume ser medido.
-* O horário do cron do GitHub pode atrasar; o vigia cobre execuções que não aconteceram, não atrasos curtos. O vigia externo tolera 3 h de atraso antes de alertar.
+* O cron do GitHub atrasa: na primeira execução agendada o resumo chegou 4 h 49 min depois das 07:17. O heartbeat cobre execuções que não aconteceram, não atrasos. A folga do vigia externo é configurada no site (*Grace Time*) e precisa ficar acima do atraso observado.
+* A exclusão de compras olha só o **começo** do texto (aquisição ou fornecimento, mesmo depois de "Registro de preços para" ou "[Portal de Compras Públicas] -"). Textos que abrem com outra frase ("Constitui objeto... aquisição de...") escapam da regra firme e só levam a penalidade. Em 20/10/2026 a regra tirou 25 dos 1.473 relevantes; 2 deles ("Fornecimento e instalação de...") podem ser serviço.
 * Editais que mudam depois da publicação só são atualizados enquanto estão na janela de 3 dias; a consulta por data de atualização está prevista.
 * E-mail diário, painel Power BI e registro no Agendador de Tarefas do Windows ainda não foram implementados.
 

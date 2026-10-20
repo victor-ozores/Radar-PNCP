@@ -61,6 +61,8 @@ class Score(_Base):
     termos_fortes: list[str] = Field(default_factory=list)
     termos_fracos: list[str] = Field(default_factory=list)
     termos_negativos: list[str] = Field(default_factory=list)
+    # Se o objeto ABRE com um destes termos, a nota é zero (não é obra nem serviço).
+    abre_com_exclusao: list[str] = Field(default_factory=list)
     peso_forte: int = 35
     teto_fortes: int = 70
     peso_fraco: int = 8

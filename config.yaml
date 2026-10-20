@@ -77,7 +77,14 @@ score:
     - "fornecimento de energia"
     # Compra de material (concreto, tintas, ferramentas...) não é obra nem serviço de engenharia.
     # Medido em 19/10/2026: tira 167 dos 1.685 relevantes (10%), nenhum passa a entrar.
-    - "aquisicao*"
+    - "aquisic*"       # aquisição e aquisições (sem acento: aquisicao / aquisicoes)
+  # Compra de produto: se o objeto ABRE com um destes termos (mesmo depois de "Registro de preços
+  # para", "[Portal de Compras Públicas] -" etc.), a nota é zero. Uma penalidade não basta: três
+  # termos fortes somam +70 e cobrem o -40. Medido em 20/10/2026: pega 19 de 1.473 relevantes (1,3%).
+  # Limite conhecido: não pega textos que começam com outra frase ("Constitui objeto... aquisição").
+  abre_com_exclusao:
+    - "aquisic*"
+    - "fornecimento"
   peso_forte: 35
   teto_fortes: 70
   peso_fraco: 8

@@ -96,19 +96,67 @@ def test_acentos_e_caixa_nao_atrapalham(scorer):
     assert r.relevante and any("manutencao predial" in m for m in r.motivos)
 
 
-def test_compra_de_material_nao_vira_relevante(scorer):
+def test_aquisicao_no_meio_do_texto_so_penaliza(scorer):
     """Medido em 19/10/2026: 167 dos 1.685 relevantes eram compra de material com 'aquisição'."""
-    compras = [
-        "Registro de preços para aquisição de materiais de construção",
-        # "obra" vinha do nome da secretaria que pediu a compra de tintas
-        "Aquisição de tintas para demarcação viária, atendendo a Secretaria de Serviços e Obras",
-    ]
-    for objeto in compras:
-        r = scorer.score(linha(objeto=objeto), AGORA)
-        assert not r.relevante and "termos de exclusão" in " ".join(r.motivos), objeto
+    # "obra" vinha do nome da secretaria que pediu a compra de tintas
+    compra = (
+        "Contratação de empresa para aquisição de tintas para demarcação viária, "
+        "atendendo a Secretaria de Serviços e Obras"
+    )
+    r = scorer.score(linha(objeto=compra), AGORA)
+    assert not r.relevante and "termos de exclusão" in " ".join(r.motivos)
     # obra de verdade, com vários termos fortes, segue relevante mesmo citando material
     obra = "Execução de obras de reforma e ampliação, incluindo a aquisição de materiais"
     assert scorer.score(linha(objeto=obra), AGORA).relevante
+
+
+@pytest.mark.parametrize(
+    "objeto",
+    [
+        # caso real de 20/10/2026 (Porto Barreiro): 3 termos fortes somavam +70 e davam nota 56
+        "AQUISIÇÃO DE MATERIAIS DE CONSTRUÇÃO VISANDO A AMPLIAÇÃO, REFORMA E MANUTENÇÃO DOS "
+        "ESTABELECIMENTOS PÚBLICOS E ATENDIMENTO AS DEMAIS DEMANDAS DA ADMINISTRAÇÃO MUNICIPAL",
+        "Registro de preços para futura e eventual aquisição de areias e pedras destinadas à "
+        "execução de obras",
+        "[Portal de Compras Públicas] - REGISTRO DE PREÇOS PARA AQUISIÇÃO DE TINTAS PARA REFORMA",
+        "Fornecimento de materiais de construção, para autarquia de Serviço Autônomo de Água",
+        "SRP AQUISIÇÃO DE MATERIAL PARA CONSTRUÇÃO E REFORMA DE ESCOLAS",
+        "REGISTRO DE PREÇOS PARA A FUTURA E EVENTUAL AQUISIÇÃO DE MATERIAIS DE CONSTRUÇÃO",
+        "Contratação para aquisição de materiais de construção e reforma",
+        "Aquisições de materiais para obras de ampliação",
+    ],
+)
+def test_texto_que_abre_com_compra_zera_a_nota(scorer, objeto):
+    r = scorer.score(linha(objeto=objeto), AGORA)
+    assert r.score == 0 and not r.relevante and "compra" in r.flags
+    assert "compra de material" in " ".join(r.motivos)
+
+
+@pytest.mark.parametrize(
+    "objeto",
+    [
+        "Contratação de empresa especializada para execução de obra de reforma, incluindo "
+        "a aquisição de materiais",
+        "Execução de obras de pavimentação, com fornecimento de materiais e mão de obra",
+        "Contratação de empresa de engenharia para fornecimento e instalação de elevadores",
+        "Registro de preços para contratação de empresa especializada em serviços de "
+        "manutenção predial",
+    ],
+)
+def test_obra_ou_servico_que_cita_material_continua_valendo(scorer, objeto):
+    r = scorer.score(linha(objeto=objeto), AGORA)
+    assert r.relevante and "compra" not in r.flags
+
+
+def test_exclusao_firme_e_configuravel(cfg):
+    from radar.scoring import Scorer
+
+    desligada = cfg.model_copy(deep=True)
+    desligada.score.abre_com_exclusao = []
+    objeto = "Aquisição de materiais para obras de reforma e ampliação"
+    assert not Scorer(cfg).score(linha(objeto=objeto), AGORA).relevante
+    # sem a regra, só a penalidade de -40 age e os três termos fortes a cobrem (o que a regra evita)
+    assert Scorer(desligada).score(linha(objeto=objeto), AGORA).relevante
 
 
 def test_mao_de_obra_nao_conta_como_obra(scorer):
