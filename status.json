@@ -1,18 +1,18 @@
 {
-  "execucoes_ok": 3,
-  "execucoes_total": 4,
-  "gerado_em": "2026-10-19T21:08:08",
-  "taxa_sucesso_30d_pct": 75.0,
+  "execucoes_ok": 4,
+  "execucoes_total": 5,
+  "gerado_em": "2026-10-19T21:14:09",
+  "taxa_sucesso_30d_pct": 80.0,
   "ultima_execucao": {
-    "error_message": "falha simulada (--simulate-failure) para testar o alerta",
-    "error_type": "PipelineError",
-    "finished_at": "2026-10-19 21:08:08",
+    "error_message": null,
+    "error_type": null,
+    "finished_at": "2026-10-19 21:14:09",
     "modo": "daily",
-    "run_id": "20261019T210808-569646",
-    "started_at": "2026-10-19 21:08:08",
-    "status": "failed",
+    "run_id": "20261019T211205-5c4600",
+    "started_at": "2026-10-19 21:12:05",
+    "status": "success",
     "trigger": "workflow_dispatch"
   },
-  "ultima_execucao_ok_em": "2026-10-19T20:59:21",
-  "ultima_execucao_ok_run_id": "20261019T204044-e660b6"
+  "ultima_execucao_ok_em": "2026-10-19T21:14:09",
+  "ultima_execucao_ok_run_id": "20261019T211205-5c4600"
 }
