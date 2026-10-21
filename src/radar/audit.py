@@ -43,6 +43,7 @@ RUN_SCHEMA: dict[str, str] = {
     "pii_redactions": "INTEGER",
     "quality_warnings": "VARCHAR",
     "alert_sent": "BOOLEAN",
+    "simulado": "BOOLEAN",
     "error_type": "VARCHAR",
     "error_message": "VARCHAR",
     "git_sha": "VARCHAR",
@@ -93,6 +94,7 @@ class RunRecord:
     pii_redactions: int = 0
     quality_warnings: dict[str, int] = field(default_factory=dict)
     alert_sent: bool = False
+    simulado: bool = False  # falha de teste (--simulate-failure): fica fora das métricas
     error_type: str | None = None
     error_message: str | None = None
     git_sha: str | None = field(

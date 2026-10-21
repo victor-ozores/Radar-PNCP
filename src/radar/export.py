@@ -1,4 +1,4 @@
-"""Exporta CSVs estáveis para o Power BI (fonte única: o Parquet do warehouse)."""
+"""Exporta os CSVs estáveis (dados abertos) e o arquivo do painel (fonte única: o Parquet do warehouse)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from typing import Any
 from radar.audit import RunLog
 from radar.config import Config
 from radar.normalize import pncp_url
+from radar.painel import export_painel
 from radar.scoring import Scorer
 from radar.store import Store
 
@@ -107,7 +108,7 @@ RUNS_COLS = [
     "retries", "http_429", "http_5xx", "rows_read", "rows_invalid", "rows_new", "rows_updated",
     "rows_unchanged", "rows_atualizacao", "prazos_alterados", "situacoes_alteradas",
     "rows_relevant_new", "uf_mismatch", "pii_redactions", "quality_warnings",
-    "alert_sent", "error_type", "error_message", "git_sha", "version",
+    "alert_sent", "simulado", "error_type", "error_message", "git_sha", "version",
 ]  # fmt: skip
 
 
@@ -121,4 +122,5 @@ def export_all(store: Store, scorer: Scorer, cfg: Config, now: datetime) -> dict
     return {
         "editais": export_editais(store, scorer, cfg, now),
         "pipeline_runs": export_runs(store),
+        "painel": export_painel(store, scorer, cfg, now),
     }

@@ -101,6 +101,16 @@ class ScoreResult:
     relevante: bool
     motivos: list[str] = field(default_factory=list)
     flags: list[str] = field(default_factory=list)
+    fortes: list[str] = field(default_factory=list)  # termos fortes que casaram (como no config)
+    fracos: list[str] = field(default_factory=list)  # termos fracos que casaram
+
+
+def edital_inativo(row: dict[str, Any]) -> bool:
+    """Revogado, anulado ou suspenso: não está mais disputando propostas."""
+    if row.get("situacao_id") in SITUACOES_INATIVAS:
+        return True
+    nome = fold(row.get("situacao_nome"))
+    return any(n in nome for n in _NOMES_INATIVOS)
 
 
 class Scorer:
@@ -178,11 +188,10 @@ class Scorer:
                 flags.append("valor_fora_da_faixa")
 
         total = max(0, min(100, total))
-        return ScoreResult(total, total >= self.cfg.alerta.score_minimo, motivos, flags)
+        return ScoreResult(
+            total, total >= self.cfg.alerta.score_minimo, motivos, flags, fortes, fracos
+        )
 
     @staticmethod
     def _inativo(row: dict[str, Any]) -> bool:
-        if row.get("situacao_id") in SITUACOES_INATIVAS:
-            return True
-        nome = fold(row.get("situacao_nome"))
-        return any(n in nome for n in _NOMES_INATIVOS)
+        return edital_inativo(row)

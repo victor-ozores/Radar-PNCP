@@ -263,6 +263,17 @@ def row_hash(row: dict[str, Any]) -> str:
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()
 
 
+def corta_texto(texto: str | None, limite: int) -> str:
+    """Corta no fim de uma palavra (nunca no meio) e acrescenta reticências."""
+    t = (texto or "").strip()
+    if len(t) <= limite:
+        return t
+    corte = t[: limite - 1]
+    if " " in corte[limite // 2 :]:
+        corte = corte.rsplit(" ", 1)[0]
+    return corte.rstrip(" ,;:-") + "…"
+
+
 def pncp_url(row: dict[str, Any]) -> str | None:
     """Página pública do edital no PNCP (sempre existe, ao contrário do link de origem)."""
     cnpj, ano, seq = row.get("orgao_cnpj"), row.get("ano_compra"), row.get("sequencial_compra")

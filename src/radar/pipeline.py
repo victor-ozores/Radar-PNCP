@@ -134,7 +134,13 @@ def run_pipeline(
     now = now or now_br()
     store = Store(opts.data_dir)
     scorer = Scorer(cfg)
-    rec = RunRecord(run_id=_new_run_id(now), trigger=opts.trigger, modo=opts.modo, started_at=now)
+    rec = RunRecord(
+        run_id=_new_run_id(now),
+        trigger=opts.trigger,
+        modo=opts.modo,
+        started_at=now,
+        simulado=opts.simulate_failure,
+    )
     outcome = Outcome(rec)
     erro: Exception | None = None
 

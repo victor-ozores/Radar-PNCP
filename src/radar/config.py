@@ -87,6 +87,8 @@ class Score(_Base):
     termos_fortes: list[str] = Field(default_factory=list)
     termos_fracos: list[str] = Field(default_factory=list)
     termos_negativos: list[str] = Field(default_factory=list)
+    # Como cada termo aparece para a pessoa no painel ("construcao" -> "construção")
+    rotulos: dict[str, str] = Field(default_factory=dict)
     compra: Compra = Field(default_factory=Compra)
     peso_forte: int = 35
     teto_fortes: int = 70

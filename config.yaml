@@ -95,6 +95,41 @@ score:
     - "banheiro* quimico*"
     - "informatica"
     - "drone*"
+  # Como as palavras aparecem no painel (o texto dos editais é comparado sem acento).
+  rotulos:
+    "obra*": "obra"
+    "reforma*": "reforma"
+    "construcao": "construção"
+    "edificac*": "edificação"
+    "manutencao predial": "manutenção predial"
+    "engenharia": "engenharia"
+    "instalacoes eletricas": "instalações elétricas"
+    "instalacoes hidraulicas": "instalações hidráulicas"
+    "climatizacao": "climatização"
+    "impermeabilizacao": "impermeabilização"
+    "pavimentacao": "pavimentação"
+    "demolicao": "demolição"
+    "restauro": "restauro"
+    "ampliacao": "ampliação"
+    "recapeamento": "recapeamento"
+    "calcamento": "calçamento"
+    "muro*": "muro"
+    "terraplenagem": "terraplenagem"
+    "rede coletora": "rede coletora"
+    "ar condicionado": "ar condicionado"
+    "elevador*": "elevador"
+    "pintura": "pintura"
+    "hidraulic*": "hidráulica"
+    "gerador*": "gerador"
+    "subestacao": "subestação"
+    "spda": "para-raios"
+    "extintor*": "extintor"
+    "telhado": "telhado"
+    "cobertura": "cobertura"
+    "piso*": "piso"
+    "esquadria*": "esquadria"
+    "calcada*": "calçada"
+    "terraplanagem": "terraplenagem"
   # Compra ou locação: se a primeira palavra-núcleo do texto pede aquisição, fornecimento ou
   # locação, a nota é zero. Uma penalidade não basta: três termos fortes somam +70 e cobrem o -40.
   # Exceções: "fornecimento e instalação/aplicação..." é serviço; "fornecimento de materiais e mão
@@ -156,5 +191,5 @@ alerta:
   enviar_quando_vazio: true # manda uma linha mesmo sem novidades (prova que o robô rodou)
 
 export:
-  dias_historico: 90        # editais publicados nos últimos N dias vão para o CSV do Power BI
+  dias_historico: 90        # editais publicados nos últimos N dias vão para o editais.csv (dados abertos)
   dias_apos_encerramento: 7 # mantém no CSV editais que encerraram há até N dias

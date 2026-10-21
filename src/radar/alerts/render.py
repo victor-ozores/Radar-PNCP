@@ -7,6 +7,7 @@ from datetime import datetime
 from html import escape
 from typing import Any
 
+from radar.normalize import corta_texto as _corta
 from radar.normalize import pncp_url
 from radar.scoring import ScoreResult
 
@@ -51,16 +52,6 @@ def fmt_prazo(fim: datetime | None, agora: datetime) -> str:
     dias = (fim.date() - agora.date()).days
     quando = "hoje" if dias == 0 else ("amanhã" if dias == 1 else f"em {dias} dias")
     return f"prazo {fim:%d/%m} {fim:%H:%M} ({quando})"
-
-
-def _corta(texto: str | None, limite: int) -> str:
-    t = (texto or "").strip()
-    if len(t) <= limite:
-        return t
-    corte = t[: limite - 1]
-    if " " in corte[limite // 2 :]:  # não deixa a última palavra cortada no meio
-        corte = corte.rsplit(" ", 1)[0]
-    return corte.rstrip(" ,;:-") + "…"
 
 
 def item_html(item: Item, agora: datetime) -> str:
