@@ -46,3 +46,31 @@ incluí-la no perfil.
 * **`usuarioNome` traz nomes de fornecedores de software** nos itens vistos (por exemplo
   "BLL Compras", "Fiorilli Software"), mas o campo pode conter pessoa física em outros casos.
   Por isso entra no descarte da allowlist (veja README, seção "Dados e LGPD").
+
+## Conferência com o PNCP ao vivo (21/10/2026)
+
+Medido comparando o que o robô guardou com a API e com a página pública de cada edital.
+
+| Verificação | Resultado |
+|---|---|
+| Link público `pncp.gov.br/app/editais/{cnpj}/{ano}/{sequencial}` | Abre o edital certo (conferido no navegador: objeto, valor e prazo iguais aos guardados) |
+| 60 editais relevantes sorteados, conferidos um a um (situação, prazo, valor) | 0 desatualizados |
+| Editais com prazo em até 7 dias (13 buscas): lista de propostas abertas da API contra o guardado | 829 em comum; 8 guardados com **prazo prorrogado** (por exemplo, 22/10 para 10/12); 2 que a API tinha e o robô não |
+| Consulta por **data de atualização** (últimos 3 dias) | Trouxe 7 dos 8 prazos prorrogados; o oitavo sumiu da API (a consulta individual também não o devolve) |
+
+Consequências para o desenho:
+
+* **Prorrogação é comum.** Quanto mais perto do vencimento, mais provável. A consulta por
+  publicação, sozinha, nunca revê um edital já guardado, então a rotina diária passou a ler
+  também a consulta por atualização. A execução registra `prazos_alterados` e `situacoes_alteradas`.
+* **A carga inicial só cobre prazos de até 30 dias** (a consulta `/proposta` usa `dataFinal`).
+  Editais com prazo mais longo só entram quando publicados ou alterados depois.
+* **Custo da consulta por atualização** (rodada de teste de 21/10/2026, 16 buscas de alterados em
+  2 dias): 3.847 linhas lidas, das quais 2.216 (58%) eram de editais já encerrados (homologações) e
+  foram descartadas; 92 prazos e 74 situações mudaram. Execução inteira: 143 chamadas. Depois dela,
+  os guardados desatualizados (prazo ≤ 7 dias) caíram de 8 em 813 (1,0%) para 1 em 791 (0,1%).
+* **O nome da secretaria dentro do texto atrapalha o filtro** ("Secretaria Municipal de Obras e
+  Engenharia"): um serviço de alinhamento de veículos casou `obra` e `engenharia` por isso.
+* **O que o filtro deixa de fora** (medido): obras de recapeamento, calçamento e muro de contenção
+  não estavam no perfil (50 editais); entraram. "Drenagem" e "esgotamento sanitário" foram testados
+  e rejeitados (trouxeram cânula de drenagem venosa e um software).

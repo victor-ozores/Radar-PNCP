@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from radar.config import Config
+from radar.config import Compra, Config
 from radar.normalize import fold
 
 #: situacaoCompraId do PNCP: 2 revogada, 3 anulada, 4 suspensa
@@ -38,21 +38,61 @@ def compile_term(term: str) -> re.Pattern[str]:
     return re.compile(r"\b" + _term_regex(term) + r"\b")
 
 
-#: Tudo o que pode vir antes do verbo de compra sem mudar o sentido: "[Portal de Compras
-#: Públicas] -", "SRP", "Registro de preços para a futura e eventual", "Contratação para a".
-_ABERTURA = (
-    r"^(?:\[[^\]]*\]\s*-?\s*)?(?:srp\s+)?"
-    r"(?:registro\s+de\s+precos?\s*(?:para|visando|objetivando)?\s*)?"
-    r"(?:a\s+)?(?:futura\s+e\s+eventual\s+)?(?:contratacao\s+)?(?:para\s+)?(?:a\s+)?"
-)
+#: Só os primeiros caracteres contam: o que o edital pede aparece logo no começo do objeto.
+JANELA_COMPRA = 220
+JANELA_ABRE_COM = 80
+_PREFIXO_COLCHETES = r"^(?:\[[^\]]*\]\s*-?\s*)?"  # "[Portal de Compras Públicas] - "
 
 
-def compile_abertura(termos: list[str]) -> re.Pattern[str] | None:
-    """Casa quando o objeto *abre* com um dos termos (ex.: "Registro de preços para aquisição")."""
-    if not termos:
-        return None
-    alternativas = "|".join(_term_regex(t) for t in termos)
-    return re.compile(_ABERTURA + r"(?:" + alternativas + r")\b")
+def _alternativas(termos: list[str]) -> str:
+    return "|".join(_term_regex(t) for t in termos)
+
+
+class _TermoCompra:
+    """Termo de compra já compilado, com as exceções (obra/serviço) desse termo."""
+
+    def __init__(self, termo: str, servico_se_seguido_de: list[str], obra_se_texto_tem: list[str]):
+        regex = r"\b(?:" + _term_regex(termo) + r")\b"
+        if servico_se_seguido_de:
+            # "fornecimento e instalação", "fornecimento, aplicação": o termo é de serviço
+            regex += r"(?!\s*,?\s*e?\s*(?:" + _alternativas(servico_se_seguido_de) + r")\b)"
+        self.padrao = re.compile(regex)
+        self.sinais_de_obra = [fold(s) for s in obra_se_texto_tem]
+
+
+class RegraCompra:
+    """Decide se um texto (já sem acento e em minúsculas) é compra ou locação, e não obra."""
+
+    def __init__(self, compra: Compra) -> None:
+        self._termos = [
+            _TermoCompra(t.termo, t.servico_se_seguido_de, t.obra_se_texto_tem)
+            for t in compra.termos
+        ]
+        self._abre_com = (
+            re.compile(_PREFIXO_COLCHETES + r"(?:" + _alternativas(compra.abre_com) + r")\b")
+            if compra.abre_com
+            else None
+        )
+        self._obra = (
+            re.compile(r"\b(?:" + _alternativas(compra.nucleos_de_obra) + r")\b")
+            if compra.nucleos_de_obra
+            else None
+        )
+
+    def eh_compra(self, texto: str) -> bool:
+        if self._abre_com and self._abre_com.search(texto[:JANELA_ABRE_COM]):
+            return True
+        inicio = texto[:JANELA_COMPRA]
+        primeira: int | None = None
+        for termo in self._termos:
+            m = termo.padrao.search(inicio)
+            if not m or any(sinal in texto for sinal in termo.sinais_de_obra):
+                continue
+            primeira = m.start() if primeira is None else min(primeira, m.start())
+        if primeira is None:
+            return False
+        obra = self._obra.search(inicio) if self._obra else None
+        return not (obra and obra.start() < primeira)  # obra aparece antes: é obra que cita compra
 
 
 @dataclass
@@ -70,7 +110,7 @@ class Scorer:
         self._fortes = [(t, compile_term(t)) for t in s.termos_fortes]
         self._fracos = [(t, compile_term(t)) for t in s.termos_fracos]
         self._negativos = [(t, compile_term(t)) for t in s.termos_negativos]
-        self._compra = compile_abertura(s.abre_com_exclusao)
+        self._compra = RegraCompra(s.compra)
 
     def score(self, row: dict[str, Any], agora: datetime) -> ScoreResult:
         s = self.cfg.score
@@ -86,16 +126,15 @@ class Scorer:
         if isinstance(fim, datetime) and fim < agora:
             return ScoreResult(0, False, ["prazo de propostas encerrado"], ["encerrado"])
 
-        texto = _MAO_DE_OBRA.sub(" ", fold(row.get("objeto")))
-        if self._compra and self._compra.search(texto):
-            # Compra de produto: uma penalidade não basta, pois três termos fortes ("construção",
-            # "reforma", "ampliação") somam +70 e cobrem os -40 (visto em produção, 20/10/2026).
+        completo = fold(row.get("objeto"))
+        if self._compra.eh_compra(completo):  # antes de tirar "mão de obra": ela é sinal de obra
             return ScoreResult(
                 0,
                 False,
-                ["compra de material: o objeto abre com aquisição/fornecimento"],
+                ["compra ou locação: o texto pede aquisição, fornecimento ou locação"],
                 ["compra"],
             )
+        texto = _MAO_DE_OBRA.sub(" ", completo)
         fortes = [t for t, p in self._fortes if p.search(texto)]
         fracos = [t for t, p in self._fracos if p.search(texto)]
         negativos = [t for t, p in self._negativos if p.search(texto)]

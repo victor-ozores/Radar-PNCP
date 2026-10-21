@@ -60,10 +60,13 @@ class Serie:
     uf: str
     inicio: date | None
     fim: date
+    feed: str = "publicacao"  # "publicacao" (novos) ou "atualizacao" (alterados)
 
     @property
     def chave(self) -> str:
         base = f"{self.modalidade}/{self.uf}"
+        if self.feed != "publicacao":
+            base = f"{self.feed}:{base}"
         return (
             f"{base}@{self.inicio:%Y%m%d}-{self.fim:%Y%m%d}"
             if self.inicio
@@ -91,16 +94,26 @@ def plan_series(cfg: Config, opts: RunOptions, hoje: date) -> tuple[list[Serie],
         if not (opts.desde and opts.ate) or opts.desde > opts.ate:
             raise PipelineError("backfill exige --desde e --ate válidos (desde <= ate)")
         desde, ate = opts.desde, opts.ate
+        desde_alt = desde  # no backfill, o mesmo período vale para novos e alterados
     else:
         ate = hoje
         desde = hoje - timedelta(days=ing.lookback_dias - 1)
-    series = [
+        desde_alt = hoje - timedelta(days=ing.lookback_atualizacao_dias - 1)
+    novos = [
         Serie(m, u, ini, fim)
         for ini, fim in _blocos(desde, ate)
         for m in ing.modalidades
         for u in ing.ufs
     ]
-    return series, desde, ate
+    # Depois dos novos, os ALTERADOS: pega prorrogações, suspensões e revogações de editais
+    # publicados em qualquer data (a consulta por publicação não os traz de volta).
+    alterados = [
+        Serie(m, u, ini, fim, feed="atualizacao")
+        for ini, fim in _blocos(desde_alt, ate)
+        for m in ing.modalidades
+        for u in ing.ufs
+    ]
+    return novos + alterados, desde, ate
 
 
 def _new_run_id(now: datetime) -> str:
@@ -187,6 +200,15 @@ class Ingerido:
 
     linhas: dict[str, dict[str, Any]]
     new_ids: list[str]
+    ids_publicacao: set[str] = field(default_factory=set)  # só o que a consulta por publicação leu
+
+
+def _paginas(client: PncpClient, opts: RunOptions, s: Serie):
+    if opts.modo == "bootstrap":
+        return client.iter_proposta(s.fim, s.modalidade, s.uf)
+    if s.feed == "atualizacao":
+        return client.iter_atualizacao(s.inicio, s.fim, s.modalidade, s.uf)  # type: ignore[arg-type]
+    return client.iter_publicacao(s.inicio, s.fim, s.modalidade, s.uf)  # type: ignore[arg-type]
 
 
 def _ingest(
@@ -199,21 +221,28 @@ def _ingest(
     now: datetime,
 ) -> Ingerido:
     fetched: dict[str, dict[str, Any]] = {}
+    ids_publicacao: set[str] = set()
     avisos: Counter[str] = Counter()
     total = UpsertResult()
+    # Ids que ainda estão abertos para propostas. A consulta por atualização devolve TODA alteração,
+    # inclusive homologações de processos encerrados há meses (21/10/2026: 3.993 de 6.004 linhas
+    # eram assim); só nos interessa o que está aberto ou que já tínhamos como aberto.
+    abertos_conhecidos: set[str] = set()
+    if any(s.feed == "atualizacao" for s in series):
+        abertos_conhecidos = {
+            r["id"] for r in store.current_state("WHERE data_encerramento_proposta >= ?", [now])
+        }
 
     for s in series:
         linhas: dict[str, dict[str, Any]] = {}
         falha: PncpError | None = None
         try:
-            paginas = (
-                client.iter_proposta(s.fim, s.modalidade, s.uf)
-                if opts.modo == "bootstrap"
-                else client.iter_publicacao(s.inicio, s.fim, s.modalidade, s.uf)  # type: ignore[arg-type]
-            )
-            for pagina in paginas:
+            for pagina in _paginas(client, opts, s):
                 for bruto in pagina:
-                    rec.rows_read += 1
+                    if s.feed == "atualizacao":
+                        rec.rows_atualizacao += 1
+                    else:
+                        rec.rows_read += 1
                     try:
                         row, pii, avisos_item = normalize_item(bruto)
                     except InvalidRecord:
@@ -228,13 +257,25 @@ def _ingest(
                     elif uf_row != s.uf:
                         rec.uf_mismatch += 1  # a API ignorou o filtro de UF?
                         continue
+                    if s.feed == "atualizacao":
+                        fim = row["data_encerramento_proposta"]
+                        if not ((fim and fim >= now) or row["id"] in abertos_conhecidos):
+                            avisos["atualizacao_encerrada_ignorada"] += 1
+                            continue
                     linhas[row["id"]] = row
         except PncpError as exc:
             falha = exc
 
+        abertos_conhecidos.update(
+            i
+            for i, r in linhas.items()
+            if r["data_encerramento_proposta"] and r["data_encerramento_proposta"] >= now
+        )
         # grava o que chegou, mesmo que a série tenha caído no meio (upsert é idempotente)
         if linhas:
             fetched.update(linhas)
+            if s.feed != "atualizacao":
+                ids_publicacao.update(linhas)
             if not opts.dry_run:
                 total.merge(store.upsert(list(linhas.values()), now))
         if falha:
@@ -249,12 +290,14 @@ def _ingest(
             log.info("série concluída", extra={"ctx": {"serie": s.chave, "linhas": len(linhas)}})
 
     if opts.dry_run:
-        total.new_ids = list(fetched)
+        total.new_ids = [i for i in fetched if i in ids_publicacao]
     rec.rows_new = len(total.new_ids)
     rec.rows_updated = len(total.updated_ids)
     rec.rows_unchanged = total.unchanged
+    rec.prazos_alterados = total.prazo_alterado
+    rec.situacoes_alteradas = total.situacao_alterada
     rec.quality_warnings = dict(avisos)
-    return Ingerido(fetched, total.new_ids)
+    return Ingerido(fetched, total.new_ids, ids_publicacao)
 
 
 def _copia_stats(client: PncpClient, rec: RunRecord) -> None:
@@ -327,7 +370,7 @@ def _alertar(
     vencendo = selecionar_vencendo(candidatos, now, alerta, {i.row["id"] for i in top})
 
     resumo = Resumo(
-        analisados=len(fetched),
+        analisados=len(ingerido.ids_publicacao),  # só o que a busca por publicação leu
         novos=len(new_ids),
         relevantes_novos=len(relevantes),
         series_total=rec.series_total,

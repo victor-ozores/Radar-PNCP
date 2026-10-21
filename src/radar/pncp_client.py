@@ -100,6 +100,23 @@ class PncpClient:
             params["uf"] = uf
         yield from self._paginate("/contratacoes/publicacao", params)
 
+    def iter_atualizacao(
+        self, data_inicial: date, data_final: date, modalidade: int, uf: str | None = None
+    ) -> Iterator[list[dict[str, Any]]]:
+        """Páginas de contratações **alteradas** no período (prazo prorrogado, suspensão, revogação).
+
+        Pega editais publicados em qualquer data, ao contrário de ``iter_publicacao``. Medido em
+        21/10/2026: 7 de 8 prorrogações que o robô tinha perdido apareceram aqui.
+        """
+        params: dict[str, Any] = {
+            "dataInicial": fmt_date(data_inicial),
+            "dataFinal": fmt_date(data_final),
+            "codigoModalidadeContratacao": modalidade,
+        }
+        if uf:
+            params["uf"] = uf
+        yield from self._paginate("/contratacoes/atualizacao", params)
+
     def iter_proposta(
         self, data_final: date, modalidade: int | None = None, uf: str | None = None
     ) -> Iterator[list[dict[str, Any]]]:

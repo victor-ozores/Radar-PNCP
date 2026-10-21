@@ -35,6 +35,9 @@ RUN_SCHEMA: dict[str, str] = {
     "rows_new": "INTEGER",
     "rows_updated": "INTEGER",
     "rows_unchanged": "INTEGER",
+    "rows_atualizacao": "INTEGER",
+    "prazos_alterados": "INTEGER",
+    "situacoes_alteradas": "INTEGER",
     "rows_relevant_new": "INTEGER",
     "uf_mismatch": "INTEGER",
     "pii_redactions": "INTEGER",
@@ -82,6 +85,9 @@ class RunRecord:
     rows_new: int = 0
     rows_updated: int = 0
     rows_unchanged: int = 0
+    rows_atualizacao: int = 0  # linhas lidas da consulta por data de atualização
+    prazos_alterados: int = 0  # prorrogações (ou antecipações) detectadas em editais já guardados
+    situacoes_alteradas: int = 0  # suspensões, revogações e anulações detectadas
     rows_relevant_new: int = 0
     uf_mismatch: int = 0
     pii_redactions: int = 0

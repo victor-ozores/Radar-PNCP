@@ -29,23 +29,34 @@ class FakeClient:
         ignora_uf: bool = False,
         falhas: dict[tuple[int, str], Exception] | None = None,
         falha_total: Exception | None = None,
+        atualizados: list[dict[str, Any]] | None = None,
+        falhas_atualizacao: dict[tuple[int, str], Exception] | None = None,
     ) -> None:
         self.items = items if items is not None else load_sample_items()
         self.ignora_uf = ignora_uf
         self.falhas = falhas or {}
         self.falha_total = falha_total
+        # o que a consulta por ATUALIZAÇÃO devolve (por padrão, nada: a maioria dos testes ignora)
+        self.atualizados = atualizados or []
+        self.falhas_atualizacao = falhas_atualizacao or {}
         self.stats = ClientStats()
         self.chamadas: list[tuple[str, int | None, str | None]] = []
 
-    def _paginas(self, modalidade: int | None, uf: str | None) -> Iterator[list[dict[str, Any]]]:
+    def _paginas(
+        self,
+        modalidade: int | None,
+        uf: str | None,
+        base: list[dict[str, Any]],
+        falhas: dict[tuple[int, str], Exception],
+    ) -> Iterator[list[dict[str, Any]]]:
         self.stats.api_calls += 1
         if self.falha_total:
             raise self.falha_total
-        if (modalidade, uf) in self.falhas:
-            raise self.falhas[(modalidade, uf)]
+        if (modalidade, uf) in falhas:
+            raise falhas[(modalidade, uf)]
         itens = [
             i
-            for i in self.items
+            for i in base
             if (modalidade is None or i["modalidadeId"] == modalidade)
             and (self.ignora_uf or uf is None or i["unidadeOrgao"]["ufSigla"] == uf)
         ]
@@ -54,11 +65,15 @@ class FakeClient:
 
     def iter_publicacao(self, inicio: date, fim: date, modalidade: int, uf: str | None = None):
         self.chamadas.append(("publicacao", modalidade, uf))
-        return self._paginas(modalidade, uf)
+        return self._paginas(modalidade, uf, self.items, self.falhas)
+
+    def iter_atualizacao(self, inicio: date, fim: date, modalidade: int, uf: str | None = None):
+        self.chamadas.append(("atualizacao", modalidade, uf))
+        return self._paginas(modalidade, uf, self.atualizados, self.falhas_atualizacao)
 
     def iter_proposta(self, fim: date, modalidade: int | None = None, uf: str | None = None):
         self.chamadas.append(("proposta", modalidade, uf))
-        return self._paginas(modalidade, uf)
+        return self._paginas(modalidade, uf, self.items, self.falhas)
 
     def close(self) -> None:
         pass

@@ -65,9 +65,59 @@ def test_mudanca_atualiza_e_preserva_first_seen(tmp_path, rows):
     res = store.upsert([alvo], T2)
 
     assert res.updated_ids == [alvo["id"]] and res.new_ids == []
+    assert res.situacao_alterada == 1 and res.prazo_alterado == 0  # só a situação mudou
     atual = store.current_state("WHERE id = ?", [alvo["id"]])[0]
     assert atual["situacao_nome"] == "Revogada"
     assert atual["first_seen_at"] == T1 and atual["last_changed_at"] == T2
+
+
+def test_prorrogacao_conta_como_prazo_alterado(tmp_path, rows):
+    from radar.normalize import row_hash
+
+    store = Store(tmp_path)
+    store.upsert(rows, T1)
+    alvo = dict(rows[0])
+    alvo["data_encerramento_proposta"] = datetime(2026, 12, 10, 9, 59)
+    alvo["row_hash"] = row_hash(alvo)
+
+    res = store.upsert([alvo], T2)
+
+    assert res.prazo_alterado == 1 and res.situacao_alterada == 0
+    # uma alteração que não toca prazo nem situação (ex.: texto) não conta em nenhum dos dois
+    outro = dict(rows[1])
+    outro["objeto"] = "objeto corrigido pelo órgão"
+    outro["row_hash"] = row_hash(outro)
+    res2 = store.upsert([outro], T2)
+    assert res2.updated_ids == [outro["id"]] and res2.prazo_alterado == 0
+
+
+def test_historico_antigo_sem_as_colunas_novas_e_migrado(tmp_path):
+    """O runs.parquet que já existe na branch `data` não tem rows_atualizacao etc."""
+    from radar.audit import RUN_SCHEMA, RunLog, RunRecord
+    from radar.store import write_parquet
+
+    store = Store(tmp_path)
+    novas = {"rows_atualizacao", "prazos_alterados", "situacoes_alteradas"}
+    schema_antigo = {c: t for c, t in RUN_SCHEMA.items() if c not in novas}
+    antigo = RunRecord(run_id="antigo", trigger="schedule", modo="daily", started_at=T1).to_row()
+    write_parquet(
+        store.conn,
+        [{c: antigo[c] for c in schema_antigo}],
+        schema_antigo,
+        tmp_path / "warehouse" / "pipeline_runs" / "runs.parquet",
+        "started_at, run_id",
+    )
+
+    log = RunLog(store)
+    log.save(
+        RunRecord(
+            run_id="novo", trigger="schedule", modo="daily", started_at=T2, prazos_alterados=7
+        )
+    )
+
+    por_id = {r["run_id"]: r for r in log.all()}
+    assert por_id["antigo"]["prazos_alterados"] is None  # execução antiga: não havia a medida
+    assert por_id["novo"]["prazos_alterados"] == 7
 
 
 def test_estado_atual_fica_com_a_versao_mais_recente(tmp_path, rows):

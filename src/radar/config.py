@@ -21,6 +21,9 @@ class Ingestao(_Base):
     ufs: list[str] = Field(min_length=1)
     modalidades: list[int] = Field(min_length=1)
     lookback_dias: int = Field(default=3, ge=1, le=30)
+    # Dias de alterações lidos na consulta por atualização (prorrogações, suspensões). Menor que o
+    # lookback de publicação porque a consulta devolve ~4x mais linhas (toda alteração conta).
+    lookback_atualizacao_dias: int = Field(default=2, ge=1, le=30)
     tamanho_pagina: int = Field(default=50, ge=10, le=50)
     intervalo_minimo_s: float = Field(default=4.0, ge=1.0)
     backoff_429_s: list[float] = Field(default_factory=lambda: [30, 60, 120], min_length=1)
@@ -57,12 +60,34 @@ class Filtros(_Base):
         return self
 
 
+class TermoCompra(_Base):
+    """Um termo que indica compra ou locação, com as exceções que o tornam obra ou serviço."""
+
+    termo: str
+    # "fornecimento e instalação/aplicação de..." é serviço: o termo é ignorado se vier seguido de um destes
+    servico_se_seguido_de: list[str] = Field(default_factory=list)
+    # "fornecimento de materiais e mão de obra" é contrato de obra: o termo é ignorado se o texto traz um destes
+    obra_se_texto_tem: list[str] = Field(default_factory=list)
+
+
+class Compra(_Base):
+    """Regra firme: texto cuja primeira palavra-núcleo é compra ou locação recebe nota zero.
+
+    Uma penalidade não basta: três termos fortes ("construção", "reforma", "ampliação") somam +70
+    e cobrem um -40. A regra olha o que o texto *pede primeiro*, não só o começo literal.
+    """
+
+    termos: list[TermoCompra] = Field(default_factory=list)
+    abre_com: list[str] = Field(default_factory=list)  # ex.: "Materiais para manutenção..."
+    # Se uma destas palavras vem ANTES do termo de compra, o texto é obra ("execução ... incluindo a aquisição")
+    nucleos_de_obra: list[str] = Field(default_factory=list)
+
+
 class Score(_Base):
     termos_fortes: list[str] = Field(default_factory=list)
     termos_fracos: list[str] = Field(default_factory=list)
     termos_negativos: list[str] = Field(default_factory=list)
-    # Se o objeto ABRE com um destes termos, a nota é zero (não é obra nem serviço).
-    abre_com_exclusao: list[str] = Field(default_factory=list)
+    compra: Compra = Field(default_factory=Compra)
     peso_forte: int = 35
     teto_fortes: int = 70
     peso_fraco: int = 8

@@ -75,6 +75,24 @@ def test_proposta_usa_so_data_final():
     assert vistos[0]["dataFinal"] == "20261031"
 
 
+def test_atualizacao_usa_o_endpoint_de_alterados_com_os_mesmos_parametros():
+    chamadas: list[tuple[str, dict[str, str]]] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        chamadas.append((req.url.path, dict(req.url.params)))
+        return pagina(int(req.url.params["pagina"]), 2)
+
+    client, _ = make_client(handler)
+    paginas = list(client.iter_atualizacao(date(2026, 10, 20), date(2026, 10, 21), 4, "MG"))
+
+    assert len(paginas) == 2
+    caminho, params = chamadas[0]
+    assert caminho.endswith("/contratacoes/atualizacao")  # e não /publicacao
+    assert params["dataInicial"] == "20261020" and params["dataFinal"] == "20261021"
+    assert params["codigoModalidadeContratacao"] == "4" and params["uf"] == "MG"
+    assert params["tamanhoPagina"] == "50"
+
+
 def test_204_e_lista_vazia():
     client, _ = make_client(lambda req: httpx.Response(204))
     assert list(client.iter_publicacao(date(2026, 10, 16), date(2026, 10, 16), 2, "SP")) == []

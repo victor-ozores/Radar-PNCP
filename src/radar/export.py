@@ -105,7 +105,8 @@ RUNS_COLS = [
     "run_id", "trigger", "modo", "started_at", "finished_at", "duration_s", "status",
     "window_start", "window_end", "series_total", "series_ok", "series_failed", "api_calls",
     "retries", "http_429", "http_5xx", "rows_read", "rows_invalid", "rows_new", "rows_updated",
-    "rows_unchanged", "rows_relevant_new", "uf_mismatch", "pii_redactions", "quality_warnings",
+    "rows_unchanged", "rows_atualizacao", "prazos_alterados", "situacoes_alteradas",
+    "rows_relevant_new", "uf_mismatch", "pii_redactions", "quality_warnings",
     "alert_sent", "error_type", "error_message", "git_sha", "version",
 ]  # fmt: skip
 

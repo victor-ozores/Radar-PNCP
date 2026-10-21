@@ -18,6 +18,10 @@ ingestao:
   # 6 pregão eletrônico, 7 pregão presencial. A 8 (dispensa) fica de fora até medir o volume.
   modalidades: [4, 5, 6, 7]
   lookback_dias: 3          # busca hoje e os 2 dias anteriores (cobre fim de semana e cron atrasado)
+  # Alterações (prazo prorrogado, suspensão, revogação): hoje e ontem. A consulta devolve cerca de
+  # 4x mais linhas que a de publicação (medido em 21/10/2026: 6.004 linhas em 3 dias), então o
+  # período é menor. Se o robô ficar mais de 1 dia parado, rode `backfill` para recuperar.
+  lookback_atualizacao_dias: 2
   tamanho_pagina: 50        # limite da API: 10 a 50
   intervalo_minimo_s: 4.0   # a API devolve 429 se for acionada rápido demais
   backoff_429_s: [30, 60, 120]
@@ -45,6 +49,13 @@ score:
     - "demolicao"
     - "restauro"
     - "ampliacao"
+    # Obras que o perfil deixava de fora (medido em 21/10/2026 nos editais abertos: 21 de
+    # recapeamento, 15 de calçamento, 14 de muro de contenção/arrimo).
+    - "recapeamento"
+    - "calcamento"
+    - "muro*"
+    - "terraplenagem"
+    - "rede coletora"
   termos_fracos:
     - "ar condicionado"
     - "elevador*"
@@ -75,16 +86,48 @@ score:
     - "insumo* hospitalar*"
     - "exame* laboratorial*"
     - "fornecimento de energia"
-    # Compra de material (concreto, tintas, ferramentas...) não é obra nem serviço de engenharia.
-    # Medido em 19/10/2026: tira 167 dos 1.685 relevantes (10%), nenhum passa a entrar.
     - "aquisic*"       # aquisição e aquisições (sem acento: aquisicao / aquisicoes)
-  # Compra de produto: se o objeto ABRE com um destes termos (mesmo depois de "Registro de preços
-  # para", "[Portal de Compras Públicas] -" etc.), a nota é zero. Uma penalidade não basta: três
-  # termos fortes somam +70 e cobrem o -40. Medido em 20/10/2026: pega 19 de 1.473 relevantes (1,3%).
-  # Limite conhecido: não pega textos que começam com outra frase ("Constitui objeto... aquisição").
-  abre_com_exclusao:
-    - "aquisic*"
-    - "fornecimento"
+    # Assuntos que casavam palavras do perfil sem ser obra (21/10/2026). Só termos específicos:
+    # "veiculo", "residuo" e "evento" foram testados e REJEITADOS, pois tiravam obra de verdade
+    # ("vias de acesso para veículos", "demolição e remoção de resíduos", "Parque de Eventos").
+    - "tenda*"
+    - "natalina"
+    - "banheiro* quimico*"
+    - "informatica"
+    - "drone*"
+  # Compra ou locação: se a primeira palavra-núcleo do texto pede aquisição, fornecimento ou
+  # locação, a nota é zero. Uma penalidade não basta: três termos fortes somam +70 e cobrem o -40.
+  # Exceções: "fornecimento e instalação/aplicação..." é serviço; "fornecimento de materiais e mão
+  # de obra" e "empreitada" são contrato de obra; e se uma palavra de obra vem ANTES ("execução de
+  # obra, incluindo a aquisição de materiais"), o texto é obra. Medido em 21/10/2026.
+  compra:
+    termos:
+      - termo: "aquisic*"
+      - termo: "fornecimento"
+        servico_se_seguido_de:
+          [instalacao, montagem, implantacao, execucao, colocacao, manutencao, aplicacao]
+        obra_se_texto_tem: ["mao de obra", "empreitada"]
+      - termo: "locacao"
+    abre_com: ["materiais", "material"]   # "Materiais para manutenção predial (134 itens)"
+    nucleos_de_obra:
+      - "execucao"
+      - "obra*"
+      - "servico*"
+      - "reforma*"
+      - "construcao"
+      - "prestacao"
+      - "manutencao"
+      - "elaboracao"
+      - "implantacao"
+      - "instalacao"
+      - "recuperacao"
+      - "pavimentacao"
+      - "demolicao"
+      - "restauro"
+      - "ampliacao"
+      - "requalificacao"
+      - "revitalizacao"
+      - "empreitada"
   peso_forte: 35
   teto_fortes: 70
   peso_fraco: 8

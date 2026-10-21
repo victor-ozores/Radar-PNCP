@@ -44,7 +44,7 @@ flowchart LR
     H --> I
 ```
 
-1. **Busca** as contratações publicadas nos últimos 3 dias (cobre fim de semana e cron atrasado) para as UFs e modalidades do `config.yaml`.
+1. **Busca** as contratações publicadas nos últimos 3 dias (cobre fim de semana e cron atrasado) para as UFs e modalidades do `config.yaml`, e **também as alteradas** hoje e ontem (prazo prorrogado, suspensão, revogação), mesmo que tenham sido publicadas meses antes.
 2. **Limpa** cada registro: guarda só os campos de uma lista permitida e remove CPF, e-mail e telefone do texto livre.
 3. **Grava** em Parquet particionado por dia de publicação. Rodar duas vezes a mesma janela não muda nenhum byte.
 4. **Pontua** de 0 a 100 com regras do `config.yaml` e explica o motivo de cada nota.
@@ -89,11 +89,13 @@ Há exemplos em [`queries/`](queries): editais abertos, volume por UF, qualidade
 | Decisão | Por quê |
 |---|---|
 | **DuckDB + Parquet**, sem arquivo `.duckdb` | SQL de verdade, custo zero, sem servidor. Parquet determinístico: reexecutar sem mudança não gera blobs novos no git |
-| **Dados na branch `data`**, código na `main` | A `main` fica limpa; partições antigas são imutáveis; a branch pode ser reescrita (squash) se crescer. Medido em 20/10/2026: um clone novo cresce ~450 KiB por dia de coleta (~160 MB por ano), bem abaixo do 1 GB que o GitHub recomenda para um repositório |
+| **Dados na branch `data`**, código na `main` | A `main` fica limpa; a branch pode ser reescrita (squash) se crescer. Crescimento medido (21/10/2026): uma execução que lê novos **e** alterados mexe em ~60 partições antigas e faz um clone novo crescer ~2 MB (a mesma execução sem o filtro de encerrados: 4,4 MB). Se for ~1 a 2 MB por dia, são 400 a 700 MB por ano, perto dos 1 GB que o GitHub recomenda; por isso a squash anual está prevista e o crescimento real das execuções agendadas precisa ser acompanhado |
 | **Intervalo de 4 s entre chamadas** + espera de 30/60/120 s no 429 | A API devolve 429 (corpo HTML) após ~8 a 10 chamadas rápidas; medido em 19/10/2026 |
 | **Cliente isolado** em `pncp_client.py` | Só ele conhece URL e parâmetros; trocar de endpoint não espalha mudança |
-| **Upsert por `numeroControlePNCP`** | Editais mudam de status (revogada, suspensa) depois de publicados |
+| **Upsert por `numeroControlePNCP`** | Editais mudam de status (revogada, suspensa) e de prazo depois de publicados |
+| **Consulta por data de atualização**, além da de publicação | Medido em 21/10/2026: ~1% dos editais com prazo em até 7 dias tinha sido prorrogado (por exemplo, de 22/10 para 10/12). Só a consulta por atualização traz de volta um edital publicado há meses; ela recuperou 7 de 8 desses casos. A execução registra quantos prazos e situações mudaram (`prazos_alterados`, `situacoes_alteradas`) |
 | **Score por regras, explicável** | Cada nota vem com os motivos; dá para calibrar o perfil olhando o `--dry-run` |
+| **Regra firme de compra e locação** | Uma penalidade não bastava: três termos fortes somam +70 e cobrem um -40. Se a primeira palavra-núcleo do texto pede aquisição, fornecimento ou locação, a nota é zero, com exceções (obra que cita material, "fornecimento e instalação", empreitada). Os casos reais ficam em `tests/fixtures/casos_reais_filtro.json` |
 | **Erros do Telegram nunca vazam o token** | O token vai na URL da API; logs do `httpx` ficam em WARNING e as mensagens de erro passam por filtro |
 
 ### Indicadores
@@ -151,7 +153,7 @@ docs/                  setup, qualidade dos dados, metodologia de horas
 
 | Peça | Custo | Cuidado tomado |
 |---|---|---|
-| GitHub Actions em repositório público | R$ 0 | Sem limite de minutos em repositório público; execução leva poucos minutos |
+| GitHub Actions em repositório público | R$ 0 | Sem limite de minutos em repositório público. A execução diária faz ~145 chamadas ao PNCP: de 12 a 30 minutos, conforme a velocidade da API (de 5 a 12 s por chamada nos testes de 21/10/2026); o limite do workflow é 60 |
 | API do PNCP | R$ 0 | Pública e sem login |
 | Telegram Bot API | R$ 0 | Sem cartão |
 | Healthchecks.io (vigia externo) | R$ 0 | Plano gratuito; usa 1 dos 20 checks. Sem recursos pagos (SMS, ligação) |
@@ -201,8 +203,11 @@ O score **não usa IA**: é um conjunto de regras determinísticas e auditáveis
 * O filtro por UF usa a UF do órgão; o local de execução da obra pode ser outro.
 * Dispensas de licitação (modalidade 8) e outras modalidades ficam fora até o volume ser medido.
 * O cron do GitHub atrasa: na primeira execução agendada o resumo chegou 4 h 49 min depois das 07:17. O heartbeat cobre execuções que não aconteceram, não atrasos. A folga do vigia externo é configurada no site (*Grace Time*) e precisa ficar acima do atraso observado.
-* A exclusão de compras olha só o **começo** do texto (aquisição ou fornecimento, mesmo depois de "Registro de preços para" ou "[Portal de Compras Públicas] -"). Textos que abrem com outra frase ("Constitui objeto... aquisição de...") escapam da regra firme e só levam a penalidade. Em 20/10/2026 a regra tirou 25 dos 1.473 relevantes; 2 deles ("Fornecimento e instalação de...") podem ser serviço.
-* Editais que mudam depois da publicação só são atualizados enquanto estão na janela de 3 dias; a consulta por data de atualização está prevista.
+* O filtro é um perfil de **palavras e valores**, não entende o sentido do texto. Numa amostra independente de 40 editais relevantes (21/10/2026), 39 estavam claramente certos e 1 era duvidoso, mas é amostra pequena e o rótulo é um julgamento (de Claude), ainda não revisado por quem faz orçamentos. A faixa de nota 40 a 59 é mais ruidosa (~75% corretos numa amostra anterior).
+* O que o filtro **deixa de fora**: obras pequenas (abaixo de R$ 100 mil) e muito grandes (acima de R$ 20 mi), por desenho do perfil; e assuntos cujas palavras também aparecem fora de obra, como "ponte" (a cidade Ponte Nova), "drenagem" (cânula de drenagem venosa) e "esgotamento sanitário" (software e planos). Foram testados e rejeitados por trazer lixo.
+* Quando o nome da secretaria que pediu a compra traz "Obras" ou "Engenharia" dentro do texto, um serviço sem relação (por exemplo, alinhamento e balanceamento de veículos) ainda pode passar. Ignorar esse trecho foi testado e tirava obra de verdade (muro de arrimo, manutenção de ar condicionado), então não foi adotado.
+* A regra de compra mantém como serviço "fornecimento e instalação de..." (geradores, peças), que pode ser equipamento. É uma escolha, e vale revisar.
+* A consulta por atualização lê as alterações de **hoje e de ontem** (`ingestao.lookback_atualizacao_dias`, e o período informado no `backfill`). Se o robô ficar mais de 1 dia parado, prorrogações desse intervalo só voltam com um `backfill`. Ela ignora alterações de editais que já estavam encerrados (homologações de processos antigos), que eram a maior parte das linhas. Medido: 1 de 8 editais com prazo alterado não apareceu na consulta (também sumiu da consulta individual do PNCP; causa desconhecida).
 * E-mail diário, painel Power BI e registro no Agendador de Tarefas do Windows ainda não foram implementados.
 
 ## Licença

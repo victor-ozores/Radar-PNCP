@@ -108,6 +108,8 @@ def cmd_run(args: argparse.Namespace, modo: str) -> int:
         extra={"ctx": {
             "status": rec.status, "lidas": rec.rows_read, "novas": rec.rows_new,
             "atualizadas": rec.rows_updated, "relevantes_novas": rec.rows_relevant_new,
+            "lidas_atualizacao": rec.rows_atualizacao, "prazos_alterados": rec.prazos_alterados,
+            "situacoes_alteradas": rec.situacoes_alteradas,
             "series_falhas": len(rec.series_failed), "chamadas_api": rec.api_calls,
             "http_429": rec.http_429, "alerta_enviado": rec.alert_sent,
         }},

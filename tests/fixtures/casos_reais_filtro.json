@@ -1,0 +1,565 @@
+{
+ "_aviso": "Editais reais do PNCP (dados públicos), coletados em 19-21/10/2026. O rótulo 'esperado_relevante' é o julgamento de Claude em 21/10/2026 e deve ser revisado por quem trabalha com orçamentos. Casos ambíguos foram deixados de fora de propósito.",
+ "casos": [
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "AQUISIÇÃO DE MATERIAIS DE CONSTRUÇÃO VISANDO A AMPLIAÇÃO, REFORMA E MANUTENÇÃO DOS ESTABELECIMENTOS PÚBLICOS E ATENDIMENTO AS DEMAIS DEMANDAS DA ADMINISTRAÇÃO MUNICIPAL",
+   "uf": "PR",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 1600000.0
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "[Portal de Compras Públicas] - Pregão eletrônico visando o registro de preços para futuras aquisições de materiais de construção de linha leve, para atendimento das demandas de obras públicas, reformas, ampliações, reparos, manutenções e demais intervenções eventuais nos espaços públicos pertencentes ao Município de Santana da Vargem/MG.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 1863594.55
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "REGISTRO DE PREÇOS PARA FUTURAS AQUISIÇÕES PARCELADAS DE MATERIAIS DE CONSTRUÇÃO E HIDRÁULICOS DESTINADOS ÀS DEMANDAS DE MANUTENÇÃO, CONSERVAÇÃO, REPAROS E PEQUENAS INTERVENÇÕES SOB RESPONSABILIDADE DA SECRETARIA MUNICIPAL DE OBRAS E SERVIÇOS URBANOS DO MUNICÍPIO DE LUPÉRCIO/SP",
+   "uf": "SP",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 336330.1
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "REGISTRO DE PREÇOS PARA O FORNECIMENTO PARCELADO DE MATERIAIS DE CONSTRUÇÃO",
+   "uf": "SP",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 155086.6
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "Registro de preços para futura e eventual aquisição de areias e pedras destinadas à execução de obras de construção civil, manutenção da malha viária, conservação de estradas rurais e demais serviços executados pelas Secretarias Municipais do Município de Socorro, conforme condições, quantidades e exigências estabelecidas no anexo I – Termo de Referência do Edital.",
+   "uf": "SP",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 1083150.0
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "Registro de preços para o fornecimento de blocos de concreto, destinados a atender às demandas operacionais de infraestrutura, reformas e manutenções gerais executadas pela Prefeitura Municipal de CaldasMG, conforme demanda, pelo período de 12 doze meses.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 153700.0
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "Registro de preços para futura e eventual contratação de empresa para fornecimento de emulsão asfáltica, visando a manutenção de vias públicas, conforme solicitação da Secretaria Municipal de Obras e Serviços Urbanos e em conformidade com as especificações e condições estabelecidas neste Edital e seus anexos.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 4050240.6
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "[LICITANET] - CONTRATAÇÃO DE EMPRESA ESPECIALIZADA PARA FORNECIMENTO DE CONCRETO USINADO, COM RESISTÊNCIA CARACTERÍSTICA FCK 25 MPA E FCK 30 MPA, COM POSSIBILIDADE DE UTILIZAÇÃO DE BOMBA ESTACIONÁRIA, DESTINADO À EXECUÇÃO DE BARRAGEM EM ZONA RURAL E À CONSTRUÇÃO DA SEDE DO SETOR DE OBRAS PÚBLICAS DO MUNICÍPIO DE SÃO GOTARDO/MG.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 1247122.02
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "Constitui objeto da presente licitação o Registro de Preços para fornecimento de brita produzida em central de britagem de 80m³/h (escória/fundo de pedreira), conforme especificações constantes no Termo de Referência, em atendimento as necessidades da Secretaria Municipal de Obras de Rosário da Limeira-MG.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": null
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "Materiais para manutenção e conservação predial – materiais de pintura, elétricos, hidráulicos e diversos (134 itens) – para as unidades da Subprefeitura Vila Mariana",
+   "uf": "SP",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 118345.14
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "Contratação de empresa para fornecimento de caminhão compactador de lixo, com capacidade de 15m³, conforme requerimento do Departamento Municipal de Obras, viação, serviços urbanos e transportes.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 733000.0
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "Contratação de empresa para fornecimento de 01 (um) veículo zero km, do tipo pick-up, com capacidade para 05 (cinco) passageiros, conforme especificações constantes no Termo de Referência, em atendimento às necessidades da Secretaria Municipal de Obras de Alto Caparaó-MG",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": null
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "[LICITANET] - Contratação de empresa para aquisição de equipamentos de informática e drone destinados à modernização tecnológica da AGRF-DAEA, visando a substituição de equipamentos obsoletos, ampliação da capacidade operacional dos setores administrativos e técnicos, bem como o fortalecimento das atividades de fiscalização, monitoramento e engenharia.",
+   "uf": "SP",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": null
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "Contratação de empresa especializada para o fornecimento de acervo literário para implantação, ampliação e revitalização do acervo das Unidades Escolares da Fundação Municipal para Educação Comunitária de Campinas – SP (FUMEC/CEPROCAMP) de acervo/literário/individual para estudantes e professores da Educação de Jovens e Adultos EJA e Educação Técnica e profissionalizante CEPROCAMP",
+   "uf": "SP",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 3069171.5
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "CONTRATAÇÃO DE EMPRESA ESPECIALIZADA PARA FORNECIMENTO DE EQUIPAMENTOS E MATERIAL PERMANENTE, COMPREENDENDO ELETRÔNICOS, EQUIPAMENTOS DE INFORMÁTICA, EQUIPAMENTOS DE CLIMATIZAÇÃO, UTENSÍLIOS DOMÉSTICOS E MOBILIÁRIO EM GERAL, DESTINADOS A ATENDER ÀS NECESSIDADES DAS SECRETARIAS E DEPARTAMENTOS QUE COMPÕEM A ADMINISTRAÇÃO PÚBLICA MUNICIPAL.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": null
+  },
+  {
+   "grupo": "compra",
+   "esperado_relevante": false,
+   "motivo": "compra de material",
+   "objeto": "(Pregão Eletrônico nº 071/2026) Contratação de empresa especializada para o fornecimento de licença de uso de sistema web destinado à elaboração de orçamentos, cronogramas, cálculo de BDI e memoriais descritivos de projetos de engenharia, bem como à gestão de obras públicas",
+   "uf": "PR",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 42171.0
+  },
+  {
+   "grupo": "locacao",
+   "esperado_relevante": false,
+   "motivo": "locação (aluguel), não obra",
+   "objeto": "REGISTRO DE PREÇOS PARA CONTRATAÇÃO DE EMPRESA ESPECIALIZADA NA LOCAÇÃO DE CAMINHÃO PRANCHA PARA ATENDER AS DEMANDAS DA SECRETARIA MUNICIPAL DE OBRAS, INFRAESTRUTURA E SERVIÇOS – SEMOB",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 126960.0
+  },
+  {
+   "grupo": "locacao",
+   "esperado_relevante": false,
+   "motivo": "locação (aluguel), não obra",
+   "objeto": "LOCAÇÃO DE MÁQUINAS E EQUIPAMENTOS PARA CONSTRUÇÃO CIVIL, PARA ATENDER AS DEMANDAS DE SERVIÇOS DE MANUTENÇÃO DE VIAS PÚBLICAS E PRÉDIOS PÚBLICOS, NO MUNICÍPIO DE LAGOA SANTA/MG.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": null
+  },
+  {
+   "grupo": "locacao",
+   "esperado_relevante": false,
+   "motivo": "locação (aluguel), não obra",
+   "objeto": "REGISTRO DE PREÇOS PARA FUTURA E EVENTUAL CONTRATAÇÃO DE EMPRESA ESPECIALIZADA NA LOCAÇÃO DE MÁQUINAS PESADAS E CAMINHÕES, COM FORNECIMENTO DE OPERADORES E MOTORISTAS DEVIDAMENTE HABILITADOS, DESTINADOS À EXECUÇÃO DE SERVIÇOS DE MANUTENÇÃO, CONSERVAÇÃO E RECUPERAÇÃO DE ESTRADAS VICINAIS E DEMAIS VIAS DA ZONA RURAL DO MUNICÍPIO DE MARLIÉRIA/MG, MOVIMENTAÇÃO, CARREGAMENTO, TRANSPORTE E DESTINAÇÃO DE TERRAS, RESÍDUOS, REJEITOS E ENTULHOS, EXECUÇÃO DE ACEIROS PARA PREVENÇÃO E COMBATE A INCÊNDIOS FLORESTAIS, BEM COMO OUTROS SERVIÇOS DE INFRAESTRUTURA E APOIO OPERACIONAL, CONFORME AS DEMANDAS DA SECRETARIA DE OBRAS, SERVIÇOS URBANOS E DEFESA CIVIL.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": null
+  },
+  {
+   "grupo": "locacao",
+   "esperado_relevante": false,
+   "motivo": "locação (aluguel), não obra",
+   "objeto": "Registro de preços para locação de estruturas e equipamentos diversos (banheiros químicos; tendas; gradil; estrutura de box Truss; palco; piso de palco; telão de led; equipe de apoio; equipamentos de som e iluminação; geradores) para serem usados em eventos públicos.",
+   "uf": "SP",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 4203889.51
+  },
+  {
+   "grupo": "outro_assunto",
+   "esperado_relevante": false,
+   "motivo": "assunto que não é obra (tenda, iluminação natalina)",
+   "objeto": "CONTRATAÇÃO DE EMPRESA ESPECIALIZADA PARA FORNECIMENTO E INSTALAÇÃO DE TENDA 10M X 10M, PARA USO EM UNIDADES ESCOLARES, DESTINADA A COBERTURA DE ÁREAS EXTERNAS PARA PROTEÇÃO DOS ALUNOS CONTRA SOL E CHUVA DURANTE ATIVIDADES PEDAGÓGICAS, RECREATIVAS, ESPORTIVAS E DE CONVIVÊNCIA, VISANDO A AMPLIAÇÃO E QUALIFICAÇÃO DOS ESPAÇOS.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 55505.52
+  },
+  {
+   "grupo": "outro_assunto",
+   "esperado_relevante": false,
+   "motivo": "assunto que não é obra (tenda, iluminação natalina)",
+   "objeto": "Contratação de empresa especializada iluminação natalina para locação temporária, instalação, testes, manutenção, operação, desmontagem e retirada de elementos de decoração, com fornecimento de mão de obra, materiais, equipamentos e instalações elétricas temporárias.",
+   "uf": "SP",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": null
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "CONTRATAÇÃO DE EMPRESA PARA EXECUÇÃO DE RECAPEAMENTO ASFÁLTICO EM VIAS URBANAS NO MUNICÍPIO DE ENGENHEIRO COELHO",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 844969.72
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "RECAPEAMENTO ASFALTICO EM DIVERSAS RUAS DO MUNICIPIO CONFORME TERMO DE COMPROMISSO Nº 990986/2025 PROPOSTA 66564/2025",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 495922.87
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "EXECUÇÃO DE RECAPEAMENTO ASFÁLTICO EM VIAS PÚBLICAS, CONFORME CONVÊNIO ESTADUAL 104055/2026",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 348789.75
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "Recapeamento asfáltica de vias urbana em concreto betuminoso usinado a quente (CBUQ), área de 100.394,16 m², contendo: serviços preliminares, base e sub-base, revestimento, serviços de urbanização, sinalização de trânsito, ensaios tecnológicos e placa de comunicação visual.",
+   "uf": "PR",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 10557230.2
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "RECAPEAMENTO ASFÁLTICO EM VIAS DO MUNICÍPIO DE PANORAMA/SP",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 840240.56
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "Contratação de empresa para prestação de serviço com fornecimentos de materiais para recapeamento asfáltico com uso de CBUQ nas ruas: Manoel da Costa, Beco sem Denominação e Rua Sete - Bairro José Caetano de Faria em atendimento ao plano de trabalho nº 003943/2026 conforme termo de referência.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 263649.67
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "CONTRATACAO DE EMPRESA ESPECIALIZADA COM FORNECIMENTO DE MATERIAL E MAO DE OBRA PARA A EXECUCAO DE RECAPEAMENTO ASFALTICO NA RUA DAS AZALEIAS RUA DOS CRAVOS E RUA JOAO IRINEU RODRIGUES .",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 276446.8
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "Contratação de empresa especializada para execução do calçamento intertravado, modelo sextavado, para as ruas das Maravilhas e Rua B, Bairro Cidade Jardim – Almenara/MG.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 500203.61
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "CONTRATAÇÃO DE EMPRESA ESPECIALIZADA PARA EXECUÇÃO DE SERVIÇOS DE CALÇAMENTO EM ESTRADAS VICINAIS DO MUNICÍPIO, COM FORNECIMENTO DE MATERIAIS E MÃO DE OBRA.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 245156.42
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "EXECUÇÃO DE CALÇAMENTO DAS ESTRADAS DO CÓRREGO DOS ILHÉUS E CÓRREGO DOS ALEXANDRES – ZONA RURAL DO MUNICÍPIO DE ENGENHEIRO CALDAS/MG.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 585829.39
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "Contratação para execução de pavimentação asfáltica em Concreto Betuminoso Usinado a Quente (CBUQ) nas vias de acesso ao Centro de Eventos Municipal, denominadas Rua de Acesso 01 e Rua de Acesso 02, no Município de Enéas Marques/PR, com área total de 5.479,15 m², incluindo serviços preliminares, terraplenagem, drenagem, base e sub-base, revestimento, meio-fio e sarjeta, urbanização, sinalização de trânsito, ensaios tecnológicos e placa de comunicação visual, conforme projetos, especificações técnicas e demais documentos integrantes do processo - Projeto SAM nº 68.",
+   "uf": "PR",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 1175970.14
+  },
+  {
+   "grupo": "obra_pavimento",
+   "esperado_relevante": true,
+   "motivo": "obra de pavimentação/recapeamento (o perfil antigo não via 'recapeamento')",
+   "objeto": "Pavimentação de vias urbanas em CBUQ, 99.279,76 m2, contemplando serviços preliminares, terraplenagem, drenagem, base e sub-base, revestimento, meio-fio e sarjeta, serviços de urbanização, sinalização de trânsito, iluminação pública e ensaios tecnológicos. Trechos: - Rua Rio Grande do Sul (entre Rua Amazonas e Rua Estrada Jaguaruna) - Rua São Paulo (entre Rua Amazonas e Rua Espírito Santo) - Rua Paraná (entre Rua Amazonas e Rua Espírito Santo) - Rua Minas Gerais (entre Rua Amazonas e Rua Espírito Santo) - Rua Pará (entre Rua Amazonas e Rua Prof. Lourdes de Moraes Rosa) - Rua Santa Catarina (entre Rua Amazonas e Rua Espírito Santo) - Rua Mato Grosso (entre Rua Amazonas e Rua Prof. Lourdes de Moraes Rosa) - Rua Goiás (entre Rua Amazonas e Rua Prof. Lourdes de Moraes Rosa) - Rua Cinco (entre Rua Vale Azul e Rua Seis) - Rua Amazonas (entre Estrada Jaguaruna e Rua Goiás) - Rua Guanabara entre Estrada Jaguaruna e Rua Goiás) - Estrada Jaguaruna (entre a Rua Vale Azul e a Rua Espírito Santo) Área Pavimentada: 99.279,76 m² , colocação de placas de comunicação visual, Prazo de execução: 300 (trezentos) dias",
+   "uf": "PR",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 33696456.88
+  },
+  {
+   "grupo": "obra_muro_rede",
+   "esperado_relevante": true,
+   "motivo": "muro de contenção, rede coletora",
+   "objeto": "CONTRATAÇÃO DE EMPRESA PARA EXECUÇÃO DE MURO DE CONTENÇÃO NA TRAVESSA TICO-TICO, NA VILA SANTO ANTÔNIO NO MUNICIPIO DE CAMPOS DO JORDÃO-SP, conforme as especificações constantes do Termo de Referência, Projeto Básico, Planilha Orçamentária e demais documentos informativos (Anexo I).",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 409251.18
+  },
+  {
+   "grupo": "obra_muro_rede",
+   "esperado_relevante": true,
+   "motivo": "muro de contenção, rede coletora",
+   "objeto": "[LICITANET] - CONTRATAÇÃO DE EMPRESA ESPECIALIZADA VISANDO A CONTRUÇÃO DE MURO DE CONTENÇÃO NA RUA ANTONIO FERREIRA SOBRINHO, BAIRRO VELOSO, BOM JARDIM/RJ",
+   "uf": "RJ",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 418019.6
+  },
+  {
+   "grupo": "obra_muro_rede",
+   "esperado_relevante": true,
+   "motivo": "muro de contenção, rede coletora",
+   "objeto": "CONSTRUÇÃO DE MURO FRONTAL EM ALVENARIA - BAIRRO BELO HORIZONTE",
+   "uf": "RJ",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 44311.72
+  },
+  {
+   "grupo": "obra_muro_rede",
+   "esperado_relevante": true,
+   "motivo": "muro de contenção, rede coletora",
+   "objeto": "Contratação de empresa especializada na prestação de serviços de execução de um muro de arrimo e calçamento na Unidade Básica de Saúde (UBS) situada na Comunidade dos Vieiras, através da Secretaria de Obras e Serviços Públicos e da Secretaria de Saúde no município de Monsenhor Paulo, Estado de Minas Gerais.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 173636.24
+  },
+  {
+   "grupo": "obra_muro_rede",
+   "esperado_relevante": true,
+   "motivo": "muro de contenção, rede coletora",
+   "objeto": "CONTRATACAO DE EMPRESA PARA EXECUCAO DE SERVICOS DE PROLONGAMENTO DE REDE DE DISTRIBUICAO DE AGUA E REDE COLETORA DE ESGOTO PARA EMPREENDIMENTO HABITACIONAL NO PARQUE NOVA ESPERANCA I E PARQUE NOVA ESPERANCA II",
+   "uf": "SP",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 341055.95
+  },
+  {
+   "grupo": "obra_com_fornecimento",
+   "esperado_relevante": true,
+   "motivo": "obra/serviço que fornece material junto (não é compra)",
+   "objeto": "Contratação de empresa, por menor preço global e sob regime de empreitada global, com medições unitárias, com fornecimento de mão-de-obra, materiais e equipamentos, para execução de serviços de construção de CMEI no Bairro Jardim Primavera, no Município de Coronel Fabriciano/MG, conforme convênio estadual nº 1261003026/2026, em atendimento à Secretaria de Governança Educacional e Cultura, tendo como fonte receita, Transferências do Estado Referentes a Convênios e Instrumentos Congêneres e Recursos não Vinculados de Impostos.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 3627463.73
+  },
+  {
+   "grupo": "obra_com_fornecimento",
+   "esperado_relevante": true,
+   "motivo": "obra/serviço que fornece material junto (não é compra)",
+   "objeto": "Contratação de empresas especializadas para a complementação e adequação funcional da Unidade Básica de Saúde (UBS) do Município de Pirajuí, mediante fornecimento, execução e instalação de: sistema de monitoramento eletrônico e infraestrutura correlata; sistema de climatização e respectivas instalações e adequações prediais; e marcenaria fixa sob medida, incorporada aos ambientes da unidade, conforme especificações, quantitativos e condições do Termo de Referência e seus anexos",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 186643.33
+  },
+  {
+   "grupo": "obra_com_fornecimento",
+   "esperado_relevante": true,
+   "motivo": "obra/serviço que fornece material junto (não é compra)",
+   "objeto": "REGISTRO DE PREÇOS PARA CONTRATAÇÃO DE EMPRESA ESPECIALIZADA NO FORNECIMENTO E APLICAÇÃO DE MASSA ASFÁLTICA USINADA A QUENTE - CBUQ, FAIXA C, DESTINADA À EXECUÇÃO DE SERVIÇOS DE MANUTENÇÃO, RECUPERAÇÃO E RECOMPOSIÇÃO DA PAVIMENTAÇÃO ASFÁLTICA DAS VIAS PÚBLICAS DO MUNICÍPIO DE TRÊS PONTAS/MG, INCLUINDO MATERIAIS, EQUIPAMENTOS E MÃO DE OBRA NECESSÁRIOS À EXECUÇÃO DOS SERVIÇOS.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 778395.0
+  },
+  {
+   "grupo": "obra_com_fornecimento",
+   "esperado_relevante": true,
+   "motivo": "obra/serviço que fornece material junto (não é compra)",
+   "objeto": "Contratação para execução da ampliação de duas salas de aula no Colégio Helio Parzianello e de uma sala de aula no Colégio Treze de Maio, em Pinhalzinho, no Município de Enéas Marques - PR, com área construída total de 197,80 m², incluindo o fornecimento de materiais e mão de obra, conforme projetos, memoriais descritivos, planilhas orçamentárias e demais especificações técnicas do Projeto SAM 58 - SECID/PARANACIDADE.",
+   "uf": "PR",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 511688.51
+  },
+  {
+   "grupo": "obra_com_fornecimento",
+   "esperado_relevante": true,
+   "motivo": "obra/serviço que fornece material junto (não é compra)",
+   "objeto": "[Portal de Compras Públicas] - Contratação de empresa especializada para execução de obras de drenagem na Praça de Eventos do Parque Ecológico Municipal Vereador Antônio Francisco da Costa, conhecido como Pátio da Fogueira.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 750578.13
+  },
+  {
+   "grupo": "obra_com_fornecimento",
+   "esperado_relevante": true,
+   "motivo": "obra/serviço que fornece material junto (não é compra)",
+   "objeto": "Execucao de reforma na EMEB Professor Erotides de Campos com fornecimentos de materiais e equipamentos ferramentas e insumos necessaros.",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 1793413.38
+  },
+  {
+   "grupo": "obra_com_fornecimento",
+   "esperado_relevante": true,
+   "motivo": "obra/serviço que fornece material junto (não é compra)",
+   "objeto": "CONTRATAÇÃO DE EMPRESA PARA FORNECIMENTO DE MATERIAIS E MÃO DE OBRA PARA A CONSTRUÇÃO DA ESCOLA JUNCAL E GIGANTINHOS",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 15571521.11
+  },
+  {
+   "grupo": "obra_tipica",
+   "esperado_relevante": true,
+   "motivo": "obra ou serviço de engenharia claro",
+   "objeto": "CONTRATAÇÃO DE EMPRESA ESPECIALIZADA PARA EXECUÇÃO DE OBRA DE REFORMA DO TELHADO DO PRÉDIO DA CÂMARA MUNICIPAL DE NOVO HORIZONTE",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 177307.8
+  },
+  {
+   "grupo": "obra_tipica",
+   "esperado_relevante": true,
+   "motivo": "obra ou serviço de engenharia claro",
+   "objeto": "CONTRATAÇÃO DE EMPRESA PARA CONSTRUÇÃO DE QUADRA DE AREIA",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 141608.17
+  },
+  {
+   "grupo": "obra_tipica",
+   "esperado_relevante": true,
+   "motivo": "obra ou serviço de engenharia claro",
+   "objeto": "a Contratação de empresa especializada para execução das obras de construção da Escola Municipal do Córrego Portugal, no Município de Matipó/MG.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 935243.72
+  },
+  {
+   "grupo": "obra_tipica",
+   "esperado_relevante": true,
+   "motivo": "obra ou serviço de engenharia claro",
+   "objeto": "CONTRATAÇÃO DE EMPRESA PARA REALIZAÇÃO DE SERVIÇO DE DEMOLIÇÃO DE PRÉDIO, ANTIGAMENTE UTILIZADO PELA FUNDEPE, SITUADO NO CAMPUS II DESTA FACULDADE.",
+   "uf": "SP",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 143185.55
+  },
+  {
+   "grupo": "obra_tipica",
+   "esperado_relevante": true,
+   "motivo": "obra ou serviço de engenharia claro",
+   "objeto": "Contratação de empresa especializada para execução de obra para a Construção de um Centro Municipal de Educação Infantil - CMEI, no bairro Paraiso tropical, no Município de Cianorte.",
+   "uf": "PR",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 4524784.12
+  },
+  {
+   "grupo": "obra_tipica",
+   "esperado_relevante": true,
+   "motivo": "obra ou serviço de engenharia claro",
+   "objeto": "Contratação de empresa de engenharia especializada para a execução da obra de reforma da Escola Municipal Primavera, situada na Rua Maria Natividade de Lima, nº 15, Bairro Vila Primavera/Morada da Serra, Ibirité/MG, CEP 32405-254, em edificação existente e em funcionamento.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 1210599.77
+  },
+  {
+   "grupo": "obra_tipica",
+   "esperado_relevante": true,
+   "motivo": "obra ou serviço de engenharia claro",
+   "objeto": "Contratação de empresa especializada para a construção de ponte com estrutura metálica e concreto armado sob o Rio Apiaí-Guaçu, KM 09, Rodovia SP-252, Município de Ribeirão Branco/SP, de acordo com o Plano de Ação: CMIL – 024/630/2026.",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 1944117.02
+  },
+  {
+   "grupo": "obra_tipica",
+   "esperado_relevante": true,
+   "motivo": "obra ou serviço de engenharia claro",
+   "objeto": "REGISTRO DE PREÇO PARA CONTRATAÇÃO DE EMPRESA ESPECIALIZADA PARA EXECUÇÃO DE SERVIÇOS DE MANUTENÇÃO PREDIAL NOS PRÉDIOS PÚBLICOS DO MUNICÍPIO DE SANTA BRANCA – SP",
+   "uf": "SP",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 7346618.38
+  },
+  {
+   "grupo": "obra_tipica",
+   "esperado_relevante": true,
+   "motivo": "obra ou serviço de engenharia claro",
+   "objeto": "Contratação do serviço de engenharia de substituição da cobertura do Bloco 3 do Campus Santos Dumont",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 336397.28
+  },
+  {
+   "grupo": "obra_tipica",
+   "esperado_relevante": true,
+   "motivo": "obra ou serviço de engenharia claro",
+   "objeto": "CONTRATAÇÃO DE EMPRESA ESPECIALIZADA EM CONSTRUÇÃO CIVIL PARA COBERTURA METÁLICA DA QUADRA ESPORTIVA RAUL ANDREZZA- BAIRRO SANTA EFIGÊNCIA.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 227157.33
+  }
+ ]
+}

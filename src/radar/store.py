@@ -63,12 +63,16 @@ class UpsertResult:
     updated_ids: list[str] = field(default_factory=list)
     unchanged: int = 0
     partitions_written: int = 0
+    prazo_alterado: int = 0  # editais que já tínhamos e cujo prazo de propostas mudou
+    situacao_alterada: int = 0  # idem para a situação (suspensa, revogada, anulada...)
 
     def merge(self, other: UpsertResult) -> None:
         self.new_ids += other.new_ids
         self.updated_ids += other.updated_ids
         self.unchanged += other.unchanged
         self.partitions_written += other.partitions_written
+        self.prazo_alterado += other.prazo_alterado
+        self.situacao_alterada += other.situacao_alterada
 
 
 def sql_quote(path: Path | str) -> str:
@@ -143,6 +147,10 @@ class Store:
                     result.new_ids.append(id_)
                     alterado = True
                 elif atual["row_hash"] != nova["row_hash"]:
+                    if atual["data_encerramento_proposta"] != nova["data_encerramento_proposta"]:
+                        result.prazo_alterado += 1
+                    if atual["situacao_id"] != nova["situacao_id"]:
+                        result.situacao_alterada += 1
                     existentes[id_] = {
                         **nova,
                         "first_seen_at": atual["first_seen_at"],

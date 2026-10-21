@@ -52,8 +52,10 @@ def test_execucao_diaria_completa(tmp_path, cfg_pequena, agora):
     )
     rec, data = out.record, tmp_path / "data"
 
-    assert rec.status == "success" and rec.series_total == 4 and rec.series_ok == 4
+    # 4 buscas de novos (modalidade x UF) + as mesmas 4 de alterados (consulta por atualização)
+    assert rec.status == "success" and rec.series_total == 8 and rec.series_ok == 8
     assert rec.rows_read == rec.rows_new == 20 and rec.rows_invalid == 0
+    assert rec.rows_atualizacao == 0 and rec.prazos_alterados == 0
     assert rec.alert_sent and notifier.enviadas and rec.finished_at is not None
     assert hashes(data), "esperava partições Parquet"
 
@@ -97,12 +99,12 @@ def test_falha_parcial_vira_partial_e_avisa(tmp_path, cfg_pequena, agora):
     out = run_pipeline(cfg_pequena, opts(tmp_path), client=client, notifier=notifier, now=agora)
 
     rec = out.record
-    assert rec.status == "partial" and rec.series_ok == 3
+    assert rec.status == "partial" and rec.series_ok == 7
     assert (
         rec.series_failed[0]["serie"].startswith("6/RJ")
         and rec.series_failed[0]["erro"] == "PncpRateLimited"
     )
-    assert "1 de 4 buscas falharam" in notifier.enviadas[0]
+    assert "1 de 8 buscas falharam" in notifier.enviadas[0]
     badge = json.loads((tmp_path / "data" / "badge.json").read_text(encoding="utf-8"))
     assert badge["color"] == "yellow"
 
@@ -110,7 +112,7 @@ def test_falha_parcial_vira_partial_e_avisa(tmp_path, cfg_pequena, agora):
 def test_todas_as_buscas_falhando_registra_falha_e_levanta(tmp_path, cfg_pequena, agora):
     client = FakeClient(falha_total=PncpRateLimited("429 persistente"))
     notifier = FakeNotifier()
-    with pytest.raises(PipelineError, match="todas as 4 buscas falharam"):
+    with pytest.raises(PipelineError, match="todas as 8 buscas falharam"):
         run_pipeline(cfg_pequena, opts(tmp_path), client=client, notifier=notifier, now=agora)
 
     runs = RunLog(Store(tmp_path / "data")).all()
@@ -223,6 +225,8 @@ def test_backfill_divide_em_blocos_e_valida_janela(cfg_pequena):
         (date(2026, 9, 15), date(2026, 9, 20)),
     }
     assert (ini, fim) == (date(2026, 9, 1), date(2026, 9, 20))
+    # o reprocessamento também lê os ALTERADOS do período (recupera prorrogações perdidas)
+    assert {s.feed for s in series} == {"publicacao", "atualizacao"}
     with pytest.raises(PipelineError):
         plan_series(cfg_pequena, RunOptions(data_dir=".", modo="backfill"), date(2026, 10, 17))
 
@@ -230,7 +234,165 @@ def test_backfill_divide_em_blocos_e_valida_janela(cfg_pequena):
 def test_janela_diaria_cobre_o_lookback(cfg):
     series, ini, fim = plan_series(cfg, RunOptions(data_dir="."), date(2026, 10, 19))
     assert (ini, fim) == (date(2026, 10, 17), date(2026, 10, 19))  # hoje + 2 dias anteriores
-    assert len(series) == len(cfg.ingestao.ufs) * len(cfg.ingestao.modalidades)
+    por_feed = len(cfg.ingestao.ufs) * len(cfg.ingestao.modalidades)
+    assert len(series) == 2 * por_feed  # novos (publicação) e alterados (atualização)
+    assert [s.feed for s in series[:por_feed]] == ["publicacao"] * por_feed  # novos primeiro
+
+
+def test_carga_inicial_nao_consulta_alterados(cfg):
+    series, _, _ = plan_series(cfg, RunOptions(data_dir=".", modo="bootstrap"), date(2026, 10, 19))
+    assert {s.feed for s in series} == {"publicacao"}
+
+
+def _alterado(sample, **mudancas):
+    """Cópia do primeiro edital da amostra, como a consulta por atualização o devolveria."""
+    item = dict(sample[0])
+    item.update(mudancas)
+    return item
+
+
+def test_atualizacao_detecta_prorrogacao_e_suspensao(tmp_path, cfg_pequena, agora):
+    """Medido em 21/10/2026: ~1% dos editais com prazo em até 7 dias tinha sido prorrogado."""
+    amostra = load_sample_items()
+    run_pipeline(
+        cfg_pequena, opts(tmp_path), client=FakeClient(amostra), notifier=FakeNotifier(), now=agora
+    )
+    original = amostra[0]
+    alterados = [
+        _alterado(amostra, dataEncerramentoProposta="2026-12-10T09:59:00",
+                  dataAtualizacaoGlobal="2026-10-20T16:01:00"),
+        # outro edital: suspenso depois de publicado
+        {**amostra[1], "situacaoCompraId": 4, "situacaoCompraNome": "Suspensa",
+         "dataAtualizacaoGlobal": "2026-10-20T17:00:00"},
+    ]  # fmt: skip
+    cliente = FakeClient(amostra, atualizados=alterados)
+    out = run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=cliente,
+        notifier=FakeNotifier(),
+        now=agora + timedelta(hours=24),
+    )
+
+    rec = out.record
+    assert rec.prazos_alterados == 1 and rec.situacoes_alteradas == 1
+    assert rec.rows_updated == 2 and rec.rows_new == 0
+    assert rec.rows_atualizacao == 2
+    assert {c[0] for c in cliente.chamadas} == {"publicacao", "atualizacao"}
+    guardado = Store(tmp_path / "data").current_state(
+        "WHERE id = ?", [original["numeroControlePNCP"]]
+    )[0]
+    assert guardado["data_encerramento_proposta"] == datetime(2026, 12, 10, 9, 59)
+    assert guardado["first_seen_at"] == agora  # continua sendo o mesmo edital, visto desde o dia 1
+    # a execução fica registrada com os contadores novos
+    assert RunLog(Store(tmp_path / "data")).all()[-1]["prazos_alterados"] == 1
+
+
+def test_atualizacao_traz_edital_antigo_que_o_robo_nao_tinha(tmp_path, cfg_pequena, agora):
+    """Edital publicado em maio e reaberto/alterado agora: só a consulta por atualização o traz."""
+    amostra = load_sample_items()
+    antigo = _alterado(
+        amostra,
+        numeroControlePNCP="11111111000111-1-000001/2026",
+        dataPublicacaoPncp="2026-05-13T14:10:00",
+        dataAtualizacaoGlobal="2026-10-20T10:00:00",
+    )
+    out = run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=FakeClient(amostra, atualizados=[antigo]),
+        notifier=FakeNotifier(),
+        now=agora,
+    )
+    assert out.record.rows_new == 21  # 20 da amostra + o antigo
+    assert (tmp_path / "data/warehouse/contratacoes/dt=2026-05-13/part.parquet").exists()
+
+
+def test_atualizacao_ignora_edital_encerrado_que_nao_conheciamos(tmp_path, cfg_pequena, agora):
+    """21/10/2026: 3.993 de 6.004 linhas da consulta eram homologações de processos já encerrados."""
+    amostra = load_sample_items()
+    encerrado = _alterado(
+        amostra,
+        numeroControlePNCP="33333333000133-1-000001/2026",
+        dataPublicacaoPncp="2025-03-02T09:00:00",
+        dataEncerramentoProposta="2025-03-20T10:00:00",
+        dataAtualizacaoGlobal="2026-10-16T10:00:00",
+    )
+    out = run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=FakeClient(amostra, atualizados=[encerrado]),
+        notifier=FakeNotifier(),
+        now=agora,
+    )
+    rec = out.record
+    assert rec.rows_atualizacao == 1 and rec.rows_new == 20  # o encerrado não entrou
+    assert rec.quality_warnings["atualizacao_encerrada_ignorada"] == 1
+    assert not (tmp_path / "data/warehouse/contratacoes/dt=2025-03-02").exists()
+
+
+def test_atualizacao_aplica_quando_um_edital_aberto_passa_a_encerrado(tmp_path, cfg_pequena, agora):
+    """Prazo antecipado ou processo encerrado: o edital deixa de aparecer como aberto."""
+    amostra = load_sample_items()
+    run_pipeline(
+        cfg_pequena, opts(tmp_path), client=FakeClient(amostra), notifier=FakeNotifier(), now=agora
+    )
+    agora2 = agora + timedelta(hours=24)
+    antecipado = _alterado(
+        amostra,
+        dataEncerramentoProposta=(agora2 - timedelta(hours=4)).isoformat(timespec="seconds"),
+        dataAtualizacaoGlobal=agora2.isoformat(timespec="seconds"),
+    )
+    out = run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=FakeClient(amostra, atualizados=[antecipado]),
+        notifier=FakeNotifier(),
+        now=agora2,
+    )
+    assert out.record.prazos_alterados == 1  # estava aberto e agora encerrou: precisa ser gravado
+    guardado = Store(tmp_path / "data").current_state(
+        "WHERE id = ?", [amostra[0]["numeroControlePNCP"]]
+    )
+    assert guardado[0]["data_encerramento_proposta"] < agora2
+
+
+def test_alterados_usam_um_periodo_proprio_menor(cfg):
+    series, _, _ = plan_series(cfg, RunOptions(data_dir="."), date(2026, 10, 19))
+    novos = {s.inicio for s in series if s.feed == "publicacao"}
+    alterados = {s.inicio for s in series if s.feed == "atualizacao"}
+    assert cfg.ingestao.lookback_dias == 3 and cfg.ingestao.lookback_atualizacao_dias == 2
+    assert novos == {date(2026, 10, 17)} and alterados == {date(2026, 10, 18)}
+    assert {s.fim for s in series} == {date(2026, 10, 19)}
+
+
+def test_resumo_conta_como_analisados_so_os_lidos_por_publicacao(tmp_path, cfg_pequena, agora):
+    amostra = load_sample_items()
+    extras = [
+        _alterado(amostra, numeroControlePNCP=f"2222222200011{i}-1-00000{i}/2026") for i in range(3)
+    ]
+    notifier = FakeNotifier()
+    run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=FakeClient(amostra, atualizados=extras),
+        notifier=notifier,
+        now=agora,
+    )
+    assert (
+        "20 analisados" in notifier.enviadas[0]
+    )  # os 3 vindos de 'atualizados' não entram na conta
+
+
+def test_falha_so_na_consulta_de_atualizacao_vira_partial(tmp_path, cfg_pequena, agora):
+    client = FakeClient(falhas_atualizacao={(4, "SP"): PncpRateLimited("429 persistente")})
+    notifier = FakeNotifier()
+    out = run_pipeline(cfg_pequena, opts(tmp_path), client=client, notifier=notifier, now=agora)
+    rec = out.record
+    assert rec.status == "partial" and rec.series_ok == 7
+    assert rec.series_failed[0]["serie"].startswith("atualizacao:4/SP")
+    assert "atualizacao:4/SP" in notifier.enviadas[0]
+    assert rec.rows_new == 20  # a coleta de novos não foi afetada
 
 
 def test_prazos_chegando_so_lista_o_que_ainda_da_tempo_de_disputar(cfg, agora):
