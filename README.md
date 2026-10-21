@@ -38,7 +38,8 @@ flowchart LR
     C --> D[(Parquet por dia<br/>consultável com SQL/DuckDB)]
     D --> E[Score por regras<br/>config.yaml]
     E --> F[Alerta Telegram<br/>top N + prazos]
-    D --> G[CSV em export/<br/>fonte do Power BI]
+    D --> G[export/<br/>painel.json + CSVs]
+    G --> J[Página no GitHub Pages<br/>lê o painel.json no navegador]
     A --> H[pipeline_runs<br/>status.json + badge]
     I[Vigia a cada 6 h] -. alerta se > 26 h sem rodar .-> F
     H --> I
@@ -49,7 +50,8 @@ flowchart LR
 3. **Grava** em Parquet particionado por dia de publicação. Rodar duas vezes a mesma janela não muda nenhum byte.
 4. **Pontua** de 0 a 100 com regras do `config.yaml` e explica o motivo de cada nota.
 5. **Avisa** no Telegram: novos relevantes, os prazos que vencem em 2 a 7 dias (os que ainda dão tempo de montar proposta; ajustável em `alerta.prazo_minimo_dias`), e um aviso se alguma busca falhou.
-6. **Se monitora**: cada execução vira uma linha em `pipeline_runs`; falha dispara alerta; um vigia confere se o robô rodou nas últimas 26 h.
+6. **Publica o painel**: grava `export/painel.json` (só os editais abertos que combinam, com prazo nos próximos 30 dias, e a saúde do robô) para a [página pública](#painel-online) ler.
+7. **Se monitora**: cada execução vira uma linha em `pipeline_runs`; falha dispara alerta; um vigia confere se o robô rodou nas últimas 26 h.
 
 ## Mude o perfil sem mexer no código
 
@@ -104,13 +106,13 @@ Tabela `pipeline_runs` (um registro por execução): início, fim, duração, st
 
 ### Stack
 
-Python 3.11+ (testes locais em 3.13; o CI usa 3.12 em Ubuntu e Windows), `httpx`, `duckdb`, `pydantic`, `pyyaml`, `pytest`, `ruff`. GitHub Actions para agendar e para o CI (Ubuntu e Windows). Telegram Bot API para alertas.
+Python 3.11+ (testes locais em 3.13; o CI usa 3.12 em Ubuntu e Windows), `httpx`, `duckdb`, `pydantic`, `pyyaml`, `pytest`, `ruff`. GitHub Actions para agendar e para o CI (Ubuntu e Windows). Telegram Bot API para alertas. Painel: React, TypeScript e Vite, testes com Vitest, publicado no GitHub Pages.
 
 ### Padrões adotados
 
 * Pipeline **determinístico e idempotente** (rodar 2x dá o mesmo resultado, verificado por hash de arquivo nos testes).
-* **Testes automatizados** do cliente (paginação, 204, 429, 5xx), da normalização, do score, do armazenamento, dos alertas e do pipeline ponta a ponta com a API simulada. Há teste de **ausência de CPF** nos dados gravados.
-* **Fonte única de verdade**: o Parquet. Os CSVs de `export/` e o painel derivam dele.
+* **Testes automatizados** do cliente (paginação, 204, 429, 5xx), da normalização, do score, do armazenamento, dos alertas, do `painel.json` e do pipeline ponta a ponta com a API simulada. Há teste de **ausência de CPF** nos dados gravados. A página tem testes das contas (fuso, prazos, faixas, filtros) e da tela (carregando, erro, lista vazia, dados velhos).
+* **Fonte única de verdade**: o Parquet. Os CSVs e o `painel.json` de `export/` derivam dele.
 * Segredos só em variáveis de ambiente / secrets; varredura com gitleaks no CI.
 
 ### Estrutura do repositório
@@ -124,13 +126,15 @@ src/radar/
   scoring.py           score 0-100 com motivos
   alerts/              montagem das mensagens e envio ao Telegram
   audit.py             pipeline_runs, status.json, badge.json
-  export.py            CSVs para o Power BI
+  export.py            CSVs de dados abertos
+  painel.py            export/painel.json, o arquivo que a página lê
   heartbeat.py         vigia de "não rodou"
   pipeline.py · cli.py orquestração e linha de comando
+site/                  a página do painel (React + Vite + TypeScript)
 tests/                 pytest, com amostra real da API em tests/fixtures
 queries/               exemplos de SQL
 docs/                  setup, qualidade dos dados, metodologia de horas
-.github/workflows/     daily.yml · heartbeat.yml · ci.yml
+.github/workflows/     daily.yml · heartbeat.yml · ci.yml · pages.yml
 ```
 
 </details>
@@ -156,6 +160,7 @@ docs/                  setup, qualidade dos dados, metodologia de horas
 | GitHub Actions em repositório público | R$ 0 | Sem limite de minutos em repositório público. A execução diária faz ~145 chamadas ao PNCP: de 12 a 30 minutos, conforme a velocidade da API (de 5 a 12 s por chamada nos testes de 21/10/2026); o limite do workflow é 60 |
 | API do PNCP | R$ 0 | Pública e sem login |
 | Telegram Bot API | R$ 0 | Sem cartão |
+| GitHub Pages (o painel) | R$ 0 | Repositório público; a página é estática e lê o arquivo de dados do próprio GitHub |
 | Healthchecks.io (vigia externo) | R$ 0 | Plano gratuito; usa 1 dos 20 checks. Sem recursos pagos (SMS, ligação) |
 | Armazenamento (Parquet no git) | R$ 0 | Sem banco hospedado; evita serviços que pausam por inatividade |
 
@@ -183,9 +188,40 @@ Armadilhas evitadas de propósito: serviços que exigem cartão, bancos gratuito
 
 Resumo em [`docs/qualidade-dados-pncp.md`](docs/qualidade-dados-pncp.md): a API não exige login, mas bloqueia com HTTP 429 (corpo HTML) quem consulta rápido; "sem valor" chega como zero; "mão de obra" nos textos faz uma busca ingênua por "obra" marcar serviços de limpeza e vigilância como obras.
 
-## Painel Power BI
+## Painel online
 
-**(a preencher)** Dois painéis planejados: negócio (editais por UF, modalidade e órgão; valor estimado; prazos da semana; funil encontrados > relevantes) e saúde do pipeline. Plano B, se o Power BI Service não permitir atualização agendada ou publicação na web com a conta disponível: `.pbix` no repositório, prints e um GIF.
+Uma página estática no **GitHub Pages**, sem servidor e sem custo. Endereço previsto: `https://victor-ozores.github.io/Radar-PNCP/` (**a preencher** com o link e um print depois da primeira publicação).
+
+**Por que não Power BI:** a licença gratuita publica o relatório, mas não o atualiza sozinha (teste do autor com a conta da UNICID), e a versão paga está fora do orçamento de R$ 0.
+
+**Como funciona:** o robô grava `export/painel.json` na branch `data`; a página baixa o arquivo direto do GitHub no navegador de quem abre e monta tudo ali. Quando o código da página muda, o workflow `pages.yml` publica de novo; os dados não passam por ele.
+
+**O que mostra:**
+
+* a saúde do robô: quando atualizou pela última vez, as últimas 14 execuções, a taxa de sucesso em 30 dias e um aviso se ele parou há mais de 36 h;
+* o número principal: quantos editais abertos combinam com o perfil, e quantos acabam em até 7 dias;
+* um panorama: prazos, estados e cidades, palavras mais encontradas e faixas de valor (com o valor mediano, sem somar valores);
+* a lista de editais, com busca, filtros (estado, prazo, valor), ordenação, o motivo de combinar e o link para o edital no PNCP.
+
+**Cuidados para não enganar:**
+
+* o prazo é refeito no navegador a cada minuto, então o que venceu desde a última execução some sozinho;
+* o painel diz que o perfil é de demonstração e que o edital deve ser conferido no PNCP;
+* os números valem só para as UFs e modalidades que o robô acompanha, e o texto da página diz isso;
+* valores abaixo de R$ 1 mil são tratados como "não informado" (apareceu R$ 0,04 nos dados reais);
+* se o arquivo não carrega, a página explica e oferece tentar de novo; se ele tem versão que a página não conhece, pede para recarregar.
+
+**Para ver no seu computador:**
+
+```powershell
+.\scripts\run_local.ps1 --no-alerts              # gera data_local\export\painel.json, sem mandar Telegram
+cd site
+npm ci
+Copy-Item ..\data_local\export\painel.json public\painel.json   # amostra local, fora do git
+npm run dev
+```
+
+Teste e build como no CI: `npm test` e `npm run build` dentro de `site/`.
 
 ## Uso de IA
 
@@ -208,7 +244,9 @@ O score **não usa IA**: é um conjunto de regras determinísticas e auditáveis
 * Quando o nome da secretaria que pediu a compra traz "Obras" ou "Engenharia" dentro do texto, um serviço sem relação (por exemplo, alinhamento e balanceamento de veículos) ainda pode passar. Ignorar esse trecho foi testado e tirava obra de verdade (muro de arrimo, manutenção de ar condicionado), então não foi adotado.
 * A regra de compra mantém como serviço "fornecimento e instalação de..." (geradores, peças), que pode ser equipamento. É uma escolha, e vale revisar.
 * A consulta por atualização lê as alterações de **hoje e de ontem** (`ingestao.lookback_atualizacao_dias`, e o período informado no `backfill`). Se o robô ficar mais de 1 dia parado, prorrogações desse intervalo só voltam com um `backfill`. Ela ignora alterações de editais que já estavam encerrados (homologações de processos antigos), que eram a maior parte das linhas. Medido: 1 de 8 editais com prazo alterado não apareceu na consulta (também sumiu da consulta individual do PNCP; causa desconhecida).
-* E-mail diário, painel Power BI e registro no Agendador de Tarefas do Windows ainda não foram implementados.
+* O painel só mostra editais que o robô leu: UFs e modalidades do `config.yaml`, com prazo nos próximos 30 dias. "Abertos" no painel é essa contagem, não o total do país.
+* A página lê o arquivo direto do GitHub, que guarda cópia por até 5 minutos. Um prazo prorrogado só aparece depois da próxima execução do robô; um edital que venceu some na hora.
+* E-mail diário e registro no Agendador de Tarefas do Windows ainda não foram implementados.
 
 ## Licença
 

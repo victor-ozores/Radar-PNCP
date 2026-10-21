@@ -1,0 +1,5 @@
+node_modules/
+dist/
+# amostra local para desenvolver a página (os dados de verdade ficam na branch `data`)
+public/painel.json
+*.tsbuildinfo

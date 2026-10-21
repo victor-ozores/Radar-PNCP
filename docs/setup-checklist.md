@@ -51,18 +51,23 @@ porque o PNCP bloqueia (HTTP 429) quem consulta rápido demais.
 5. Teste o alerta de falha: rode **Pipeline diário** com `simulate_failure = true`.
    A mensagem 🚨 deve chegar no Telegram.
 
-## 4. Power BI (teste cedo)
+## 4. Painel online (GitHub Pages, grátis)
 
-O Power BI Service pode exigir e-mail corporativo ou escolar, e a publicação na web pode estar
-bloqueada pelo administrador do tenant. Antes de montar o painel:
+O Power BI foi descartado: a licença gratuita não atualiza sozinha. O painel é uma página estática
+em `site/` que lê `export/painel.json` da branch `data`.
 
-1. Entre em app.powerbi.com com o e-mail da UNICID.
-2. Publique um CSV pequeno e veja se aparece **Atualização agendada** e **Publicar na web**.
-3. Anote o resultado no README (seção "Painel"). Se não funcionar, o plano B é o `.pbix` no
-   repositório mais prints e um GIF.
+1. No repositório: **Settings > Pages > Build and deployment > Source = GitHub Actions**. Sem esse
+   passo o workflow **Painel (GitHub Pages)** falha no último passo (*deploy*).
+2. Em **Actions**, rode **Painel (GitHub Pages)** (ou faça um push que mude algo em `site/`).
+   Ao terminar, o endereço aparece no passo *deploy*: `https://victor-ozores.github.io/Radar-PNCP/`.
+3. A página só mostra editais depois que o `painel.json` existir na branch `data`, o que acontece
+   na primeira execução do **Pipeline diário** com o código novo. Antes disso ela avisa que não
+   conseguiu carregar (erro 404), o que é esperado.
 
-Fonte dos dados para o painel (pública, sem login):
-`https://raw.githubusercontent.com/victor-ozores/Radar-PNCP/data/export/editais.csv`
+Fonte dos dados do painel (pública, sem login):
+`https://raw.githubusercontent.com/victor-ozores/Radar-PNCP/data/export/painel.json`
+
+Para mexer na página no seu computador, veja *Painel online* no README.
 
 ## 5. Vigia externo (Healthchecks.io, grátis)
 
