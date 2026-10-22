@@ -8,6 +8,8 @@ import {
   combinam,
   faixasPrazo,
   filtrar,
+  filtroLimpo,
+  filtrosAtivos,
   idFaixaValor,
   lePainel,
   mediana,
@@ -15,6 +17,7 @@ import {
   porUf,
   resumir,
   resumoValores,
+  semFiltro,
   termosMaisCitados,
   topMunicipios,
   vigentes,
@@ -213,5 +216,76 @@ describe("filtrar e ordenar", () => {
     const original = [pista, escola];
     ordenar(original, "prazo");
     expect(original).toEqual([pista, escola]);
+  });
+
+  it("filtra por faixa de prazo (mínimo e máximo, inclusive)", () => {
+    const f = (prazoMin: number | null, prazoMax: number | null) =>
+      filtrar(todos, { ...FILTRO_INICIAL, prazoMin, prazoMax, incluirEmParte: true }, AGORA);
+    expect(f(null, 3)).toEqual([escola]); // escola vence em 2 dias
+    expect(f(4, 7)).toEqual([parcial]); // 5 dias
+    expect(f(8, null)).toEqual([pista]); // 12 dias
+    expect(f(2, 2)).toEqual([escola]); // limites inclusivos
+    expect(f(13, null)).toEqual([]);
+  });
+
+  it("filtra por cidade, por palavra do perfil e por registro de preços", () => {
+    const srp = edital({ registro_de_precos: true, termos: ["pavimentação"], municipio: "Uberaba", uf: "MG" });
+    const lista = [escola, pista, srp];
+    expect(filtrar(lista, { ...FILTRO_INICIAL, cidade: "Uberaba / MG" }, AGORA)).toEqual([pista, srp].sort(
+      (a, b) => Date.parse(a.prazo) - Date.parse(b.prazo) || a.id.localeCompare(b.id),
+    ));
+    expect(filtrar(lista, { ...FILTRO_INICIAL, termo: "pavimentação" }, AGORA)).toEqual([srp]);
+    expect(filtrar(lista, { ...FILTRO_INICIAL, registro: true }, AGORA)).toEqual([srp]);
+    expect(filtrar(lista, { ...FILTRO_INICIAL, termo: "inexistente" }, AGORA)).toEqual([]);
+  });
+});
+
+describe("etiquetas dos filtros ativos", () => {
+  it("não mostra nada quando não há filtro, e a ordem não conta", () => {
+    expect(filtrosAtivos(FILTRO_INICIAL)).toEqual([]);
+    expect(filtrosAtivos({ ...FILTRO_INICIAL, ordem: "valor" })).toEqual([]);
+  });
+
+  it("descreve cada escolha em português", () => {
+    const f = {
+      ...FILTRO_INICIAL,
+      busca: " escola ",
+      uf: "SP",
+      cidade: "Campinas / SP",
+      termo: "obra",
+      prazoMin: 4,
+      prazoMax: 7,
+      faixa: "1a5mi",
+      registro: true,
+      incluirEmParte: true,
+    };
+    expect(filtrosAtivos(f).map((a) => a.texto)).toEqual([
+      "Busca: “escola”",
+      "Estado: SP",
+      "Cidade: Campinas / SP",
+      "Palavra: obra",
+      "Prazo de 4 a 7 dias",
+      "Valor: R$ 1 a 5 mi",
+      "Registro de preços",
+      "Incluindo “combina em parte”",
+    ]);
+  });
+
+  it("descreve prazos sem um dos limites", () => {
+    expect(filtrosAtivos({ ...FILTRO_INICIAL, prazoMax: 7 })[0]?.texto).toBe("Prazo em até 7 dias");
+    expect(filtrosAtivos({ ...FILTRO_INICIAL, prazoMin: 16 })[0]?.texto).toBe("Prazo a partir de 16 dias");
+    expect(filtrosAtivos({ ...FILTRO_INICIAL, faixa: SEM_VALOR })[0]?.texto).toBe("Valor não informado");
+  });
+
+  it("semFiltro tira só a escolha pedida", () => {
+    const f = { ...FILTRO_INICIAL, uf: "SP", prazoMin: 4, prazoMax: 7, registro: true, ordem: "nota" as const };
+    expect(semFiltro(f, "prazo")).toEqual({ ...f, prazoMin: null, prazoMax: null });
+    expect(semFiltro(f, "uf")).toEqual({ ...f, uf: "" });
+    expect(semFiltro(f, "registro")).toEqual({ ...f, registro: false });
+  });
+
+  it("filtroLimpo zera as escolhas e guarda a ordem", () => {
+    const f = { ...FILTRO_INICIAL, uf: "SP", busca: "x", ordem: "valor" as const };
+    expect(filtroLimpo(f)).toEqual({ ...FILTRO_INICIAL, ordem: "valor" });
   });
 });

@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0c0d0f" media="(prefers-color-scheme: dark)" />
+    <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin />
     <meta
       name="description"
       content="Painel público do Radar de Licitações PNCP: editais abertos de obras e serviços de engenharia, filtrados automaticamente todos os dias."
@@ -13,6 +16,7 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>Esta página precisa de JavaScript para mostrar os editais. Eles continuam disponíveis no PNCP: https://pncp.gov.br/app/editais</noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

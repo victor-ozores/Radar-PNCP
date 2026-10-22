@@ -5,11 +5,13 @@ import {
   dataCurta,
   dataEHora,
   diaBR,
+  diaDoMes,
   diasAte,
   emQuantosDias,
   haQuantoTempo,
   horaCurta,
   horasDesde,
+  mesCurto,
 } from "./tempo";
 
 describe("dia em Brasília", () => {
@@ -40,6 +42,15 @@ describe("textos de data", () => {
     expect(dataCurta("2026-10-28T10:00:00-03:00")).toBe("28/10");
     expect(horaCurta("2026-10-28T10:05:00-03:00")).toBe("10h05");
     expect(horaCurta("2026-10-28T00:30:00-03:00")).toBe("00h30"); // meia-noite não vira "24h"
+  });
+
+  it("dia e mês abreviado, no fuso de Brasília", () => {
+    expect(diaDoMes("2026-10-05T10:00:00-03:00")).toBe("5");
+    expect(mesCurto("2026-10-05T10:00:00-03:00")).toBe("out");
+    expect(mesCurto("2026-12-28T10:00:00-03:00")).toBe("dez");
+    // 1h da manhã de 1º/11 em UTC ainda é 31/10 à noite em Brasília
+    expect(diaDoMes("2026-11-01T01:30:00Z")).toBe("31");
+    expect(mesCurto("2026-11-01T01:30:00Z")).toBe("out");
   });
 
   it("diz hoje, amanhã ou o dia da semana", () => {

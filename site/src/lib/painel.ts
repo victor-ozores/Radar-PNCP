@@ -78,11 +78,12 @@ export interface Linha {
   n: number;
 }
 
+/** `min`/`max`: dias de calendário até o prazo, como o filtro da lista os usa (`null` = sem limite). */
 export const FAIXAS_PRAZO = [
-  { id: "ate3", rotulo: "Até 3 dias", max: 3 },
-  { id: "4a7", rotulo: "4 a 7 dias", max: 7 },
-  { id: "8a15", rotulo: "8 a 15 dias", max: 15 },
-  { id: "16a30", rotulo: "16 a 30 dias", max: Infinity },
+  { id: "ate3", rotulo: "Até 3 dias", min: null, max: 3 },
+  { id: "4a7", rotulo: "4 a 7 dias", min: 4, max: 7 },
+  { id: "8a15", rotulo: "8 a 15 dias", min: 8, max: 15 },
+  { id: "16a30", rotulo: "16 a 30 dias", min: 16, max: null },
 ] as const;
 
 export const FAIXAS_VALOR = [
@@ -99,7 +100,7 @@ export function faixasPrazo(editais: Edital[], agora: Date): Linha[] {
   const contagem = new Map<string, number>(FAIXAS_PRAZO.map((f) => [f.id, 0]));
   for (const e of editais) {
     const dias = diasAte(e.prazo, agora);
-    const faixa = FAIXAS_PRAZO.find((f) => dias <= f.max);
+    const faixa = FAIXAS_PRAZO.find((f) => f.max === null || dias <= f.max);
     if (faixa) contagem.set(faixa.id, (contagem.get(faixa.id) ?? 0) + 1);
   }
   return FAIXAS_PRAZO.map((f) => ({ id: f.id, rotulo: f.rotulo, n: contagem.get(f.id) ?? 0 }));
@@ -193,10 +194,16 @@ export type Ordem = "prazo" | "nota" | "valor";
 export interface Filtro {
   busca: string;
   uf: string;
-  /** Prazo em até N dias (de calendário); `null` = qualquer. */
+  /** "Município / UF", como nas barras do panorama; "" = qualquer. */
+  cidade: string;
+  /** Uma palavra do perfil que o robô encontrou ("obra"); "" = qualquer. */
+  termo: string;
+  /** Prazo entre N e M dias de calendário (inclusive); `null` = sem limite naquele lado. */
+  prazoMin: number | null;
   prazoMax: number | null;
   /** id de `FAIXAS_VALOR`, `SEM_VALOR` ou "" (qualquer). */
   faixa: string;
+  registro: boolean;
   incluirEmParte: boolean;
   ordem: Ordem;
 }
@@ -204,11 +211,69 @@ export interface Filtro {
 export const FILTRO_INICIAL: Filtro = {
   busca: "",
   uf: "",
+  cidade: "",
+  termo: "",
+  prazoMin: null,
   prazoMax: null,
   faixa: "",
+  registro: false,
   incluirEmParte: false,
   ordem: "prazo",
 };
+
+/** Os filtros que a pessoa escolheu (tudo menos a ordem), um por etiqueta removível. */
+export type ChaveFiltro = "busca" | "uf" | "cidade" | "termo" | "prazo" | "faixa" | "registro" | "incluirEmParte";
+
+export interface FiltroAtivo {
+  chave: ChaveFiltro;
+  texto: string;
+}
+
+function textoPrazo(min: number | null, max: number | null): string {
+  if (min === null && max !== null) return `Prazo em até ${max} dias`;
+  if (min !== null && max !== null) return `Prazo de ${min} a ${max} dias`;
+  return `Prazo a partir de ${min} dias`;
+}
+
+export function filtrosAtivos(f: Filtro): FiltroAtivo[] {
+  const ativos: FiltroAtivo[] = [];
+  if (f.busca.trim()) ativos.push({ chave: "busca", texto: `Busca: “${f.busca.trim()}”` });
+  if (f.uf) ativos.push({ chave: "uf", texto: `Estado: ${f.uf}` });
+  if (f.cidade) ativos.push({ chave: "cidade", texto: `Cidade: ${f.cidade}` });
+  if (f.termo) ativos.push({ chave: "termo", texto: `Palavra: ${f.termo}` });
+  if (f.prazoMin !== null || f.prazoMax !== null) {
+    ativos.push({ chave: "prazo", texto: textoPrazo(f.prazoMin, f.prazoMax) });
+  }
+  if (f.faixa) {
+    const faixa = FAIXAS_VALOR.find((v) => v.id === f.faixa);
+    ativos.push({ chave: "faixa", texto: f.faixa === SEM_VALOR ? "Valor não informado" : `Valor: ${faixa?.rotulo ?? f.faixa}` });
+  }
+  if (f.registro) ativos.push({ chave: "registro", texto: "Registro de preços" });
+  if (f.incluirEmParte) ativos.push({ chave: "incluirEmParte", texto: "Incluindo “combina em parte”" });
+  return ativos;
+}
+
+/** O mesmo filtro, sem uma das escolhas. */
+export function semFiltro(f: Filtro, chave: ChaveFiltro): Filtro {
+  switch (chave) {
+    case "prazo":
+      return { ...f, prazoMin: null, prazoMax: null };
+    case "busca":
+    case "uf":
+    case "cidade":
+    case "termo":
+    case "faixa":
+      return { ...f, [chave]: "" };
+    case "registro":
+    case "incluirEmParte":
+      return { ...f, [chave]: false };
+  }
+}
+
+/** Limpa as escolhas e mantém só a ordem. */
+export function filtroLimpo(f: Filtro): Filtro {
+  return { ...FILTRO_INICIAL, ordem: f.ordem };
+}
 
 const textos = new WeakMap<Edital, string>();
 
@@ -226,7 +291,14 @@ export function filtrar(editais: Edital[], f: Filtro, agora: Date): Edital[] {
   const achados = editais.filter((e) => {
     if (!f.incluirEmParte && e.combina === "parcial") return false;
     if (f.uf && e.uf !== f.uf) return false;
-    if (f.prazoMax !== null && diasAte(e.prazo, agora) > f.prazoMax) return false;
+    if (f.cidade && `${e.municipio} / ${e.uf}` !== f.cidade) return false;
+    if (f.termo && !e.termos.includes(f.termo)) return false;
+    if (f.registro && !e.registro_de_precos) return false;
+    if (f.prazoMin !== null || f.prazoMax !== null) {
+      const dias = diasAte(e.prazo, agora);
+      if (f.prazoMin !== null && dias < f.prazoMin) return false;
+      if (f.prazoMax !== null && dias > f.prazoMax) return false;
+    }
     if (f.faixa && idFaixaValor(e.valor) !== f.faixa) return false;
     if (palavras.length) {
       const t = textoBusca(e);

@@ -200,8 +200,9 @@ Uma página estática no **GitHub Pages**, sem servidor e sem custo. Endereço p
 
 * a saúde do robô: quando atualizou pela última vez, as últimas 14 execuções, a taxa de sucesso em 30 dias e um aviso se ele parou há mais de 36 h;
 * o número principal: quantos editais abertos combinam com o perfil, e quantos acabam em até 7 dias;
-* um panorama: prazos, estados e cidades, palavras mais encontradas e faixas de valor (com o valor mediano, sem somar valores);
-* a lista de editais, com busca, filtros (estado, prazo, valor), ordenação, o motivo de combinar e o link para o edital no PNCP.
+* um panorama: prazos, estados e cidades, palavras mais encontradas e faixas de valor (com o valor mediano, sem somar valores). Cada barra é clicável e filtra a lista logo abaixo;
+* a lista de editais, com busca, filtros (estado, prazo, valor, registro de preços) que aparecem como etiquetas removíveis, ordenação, o motivo de combinar e o link para o edital no PNCP;
+* tema claro e escuro (segue o do sistema; o botão da barra troca e a página lembra a escolha), e layout pensado primeiro para o celular.
 
 **Cuidados para não enganar:**
 
@@ -209,6 +210,7 @@ Uma página estática no **GitHub Pages**, sem servidor e sem custo. Endereço p
 * o painel diz que o perfil é de demonstração e que o edital deve ser conferido no PNCP;
 * os números valem só para as UFs e modalidades que o robô acompanha, e o texto da página diz isso;
 * valores abaixo de R$ 1 mil são tratados como "não informado" (apareceu R$ 0,04 nos dados reais);
+* objetos e órgãos escritos em CAIXA ALTA aparecem em caixa normal, só na tela (o texto original continua no PNCP);
 * se o arquivo não carrega, a página explica e oferece tentar de novo; se ele tem versão que a página não conhece, pede para recarregar.
 
 **Para ver no seu computador:**

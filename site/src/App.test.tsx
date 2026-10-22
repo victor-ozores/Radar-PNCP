@@ -27,14 +27,27 @@ function dados(editais: Edital[], parcial: Partial<Painel> = {}): Painel {
   return base;
 }
 
-beforeEach(() => vi.unstubAllGlobals());
+/** Os cartões de edital da lista (e só eles). */
+function cartoes(): HTMLElement[] {
+  const lista = screen.getByRole("heading", { name: "Editais abertos" }).closest("section")!;
+  return within(lista)
+    .queryAllByRole("listitem")
+    .filter((li) => li.classList.contains("edital"));
+}
+
+beforeEach(() => {
+  vi.unstubAllGlobals();
+  window.localStorage.clear();
+  delete document.documentElement.dataset.tema;
+});
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 
 describe("App", () => {
-  it("mostra os números, o panorama e a lista depois de carregar", async () => {
+  it("mostra o esqueleto e depois os números, o panorama e a lista", async () => {
     respondeCom(
       resposta(
         dados([
@@ -48,11 +61,10 @@ describe("App", () => {
 
     expect(screen.getByText("Carregando os editais…")).toBeTruthy();
     expect(await screen.findByText("editais abertos combinam com o perfil")).toBeTruthy();
-    // 2 combinam; o "em parte" fica fora dos números e aparece só como aviso
-    expect(screen.getByText(/Há ainda 1 edital que combina só em parte/)).toBeTruthy();
-    expect(screen.getByRole("heading", { name: /Panorama dos 2 editais que combinam/ })).toBeTruthy();
-    const lista = screen.getByRole("heading", { name: "Editais abertos" }).closest("section")!;
-    expect(within(lista).getAllByRole("listitem").filter((li) => li.className === "edital")).toHaveLength(2);
+    // 2 combinam; o "em parte" fica fora dos números e só entra na lista se a pessoa pedir
+    expect(screen.getByText("Combinam só em parte")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: /Panorama dos 2 editais/ })).toBeTruthy();
+    expect(cartoes()).toHaveLength(2);
   });
 
   it("esconde o edital cujo prazo já passou desde que o arquivo foi gerado", async () => {
@@ -84,25 +96,128 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText("Buscar"), { target: { value: "ESCOLA" } });
     expect(screen.queryByText("Pavimentação de ruas")).toBeNull();
     expect(screen.getByText("Reforma de escola")).toBeTruthy();
-    expect(screen.getByText("Mostrando 1 de 1 edital.")).toBeTruthy();
+    expect(screen.getByText("Mostrando 1 de 1 edital")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tirar filtro: Busca: “ESCOLA”" })).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText("Buscar"), { target: { value: "zzz" } });
     expect(screen.getByText(/Nenhum edital com esses filtros/)).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Limpar filtros" })[0]!);
     expect(screen.getByText("Pavimentação de ruas")).toBeTruthy();
     expect(screen.getByText("Reforma de escola")).toBeTruthy();
+    expect((screen.getByLabelText("Buscar") as HTMLInputElement).value).toBe("");
+  });
+
+  it("clicar numa barra do panorama filtra a lista, mostra a etiqueta e clicar de novo desfaz", async () => {
+    respondeCom(
+      resposta(
+        dados([
+          edital({ prazo: emHoras(30), uf: "SP", objeto: "Obra em São Paulo" }),
+          edital({ prazo: emHoras(60), uf: "SP", municipio: "Campinas", objeto: "Obra em Campinas" }),
+          edital({ prazo: emHoras(90), uf: "MG", municipio: "Uberaba", objeto: "Obra em Uberaba" }),
+        ]),
+      ),
+    );
+    render(<App />);
+    await screen.findByText("Obra em Uberaba");
+
+    const barraSP = screen.getByRole("button", { name: "SP: 2 editais" });
+    expect(barraSP.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(barraSP);
+
+    expect(cartoes()).toHaveLength(2);
+    expect(screen.queryByText("Obra em Uberaba")).toBeNull();
+    expect(screen.getByRole("button", { name: "SP: 2 editais" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Tirar filtro: Estado: SP" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "SP: 2 editais" }));
+    expect(cartoes()).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: /Tirar filtro/ })).toBeNull();
+  });
+
+  it("leva até a lista ao escolher uma barra, mas não ao desfazer a escolha", async () => {
+    const rolar = vi.fn();
+    Element.prototype.scrollIntoView = rolar;
+    respondeCom(resposta(dados([edital({ prazo: emHoras(30), uf: "SP" }), edital({ prazo: emHoras(60), uf: "MG" })])));
+    render(<App />);
+    await screen.findByRole("button", { name: "SP: 1 edital" });
+
+    fireEvent.click(screen.getByRole("button", { name: "SP: 1 edital" }));
+    expect(rolar).toHaveBeenCalledTimes(1);
+    expect(rolar.mock.contexts[0]).toBe(document.getElementById("editais"));
+
+    fireEvent.click(screen.getByRole("button", { name: "SP: 1 edital" })); // desfaz
+    expect(rolar).toHaveBeenCalledTimes(1);
+  });
+
+  it("o botão do destaque mostra só o que vence em até 7 dias", async () => {
+    respondeCom(
+      resposta(
+        dados([
+          edital({ prazo: emHoras(48), objeto: "Vence logo" }),
+          edital({ prazo: emHoras(24 * 20), objeto: "Vence depois" }),
+        ]),
+      ),
+    );
+    render(<App />);
+    await screen.findByText("Vence depois");
+
+    fireEvent.click(screen.getByRole("button", { name: "Só os que vencem em até 7 dias" }));
+    expect(screen.getByText("Vence logo")).toBeTruthy();
+    expect(screen.queryByText("Vence depois")).toBeNull();
+    expect(screen.getByRole("button", { name: "Tirar filtro: Prazo em até 7 dias" })).toBeTruthy();
+  });
+
+  it("os botões de estado e de prazo da lista alternam e somam filtros", async () => {
+    respondeCom(
+      resposta(
+        dados([
+          edital({ prazo: emHoras(48), uf: "SP", objeto: "SP perto" }),
+          edital({ prazo: emHoras(24 * 20), uf: "SP", objeto: "SP longe" }),
+          edital({ prazo: emHoras(48), uf: "MG", objeto: "MG perto" }),
+        ]),
+      ),
+    );
+    render(<App />);
+    await screen.findByText("MG perto");
+
+    fireEvent.click(screen.getByRole("button", { name: "MG" }));
+    expect(cartoes()).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "MG" })); // de novo: desliga
+    expect(cartoes()).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole("button", { name: "SP" }));
+    fireEvent.click(screen.getByRole("button", { name: "Até 7 dias" }));
+    expect(cartoes()).toHaveLength(1);
+    expect(screen.getByText("SP perto")).toBeTruthy();
   });
 
   it("mostra 30 de cada vez e pede para mostrar mais", async () => {
     const muitos = Array.from({ length: 35 }, (_, i) => edital({ prazo: emHoras(24 + i), objeto: `Obra ${i}` }));
     respondeCom(resposta(dados(muitos)));
     render(<App />);
-    await screen.findByText("Mostrando 30 de 35 editais.");
+    await screen.findByText("Mostrando 30 de 35 editais");
 
     fireEvent.click(screen.getByRole("button", { name: "Mostrar mais 5" }));
-    expect(screen.getByText("Mostrando 35 de 35 editais.")).toBeTruthy();
+    expect(screen.getByText("Mostrando 35 de 35 editais")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Mostrar mais/ })).toBeNull();
+  });
+
+  it("escreve em caixa normal o objeto que veio em CAIXA ALTA", async () => {
+    respondeCom(
+      resposta(
+        dados([
+          edital({
+            prazo: emHoras(40),
+            objeto: "[LICITANET] - CONTRATAÇÃO DE EMPRESA PARA REFORMA DA ESCOLA MUNICIPAL",
+            orgao: "MUNICIPIO DE LAMBARI",
+          }),
+        ]),
+      ),
+    );
+    render(<App />);
+    expect(await screen.findByText("Contratação de Empresa para Reforma da Escola Municipal")).toBeTruthy();
+    expect(screen.getByText("Município de Lambari")).toBeTruthy();
   });
 
   it("avisa quando o robô está há mais de um dia e meio sem atualizar", async () => {
@@ -112,12 +227,27 @@ describe("App", () => {
     render(<App />);
     expect(await screen.findByText("Atenção")).toBeTruthy();
     expect(screen.getByText(/podem estar desatualizados/)).toBeTruthy();
+    expect(screen.getByText(/Parado há/)).toBeTruthy(); // e a barra do topo também diz
   });
 
   it("mostra o robô em dia quando a última execução é recente", async () => {
     respondeCom(resposta(dados([edital({ prazo: emHoras(50) })])));
     render(<App />);
     expect(await screen.findByText("Robô em dia")).toBeTruthy();
+    expect(screen.getByText(/Atualizado há/)).toBeTruthy();
+  });
+
+  it("alterna o tema, lembra a escolha e aplica no documento", async () => {
+    respondeCom(resposta(dados([edital({ prazo: emHoras(50) })])));
+    render(<App />);
+    await screen.findByText("Robô em dia");
+
+    fireEvent.click(screen.getByRole("button", { name: "Usar tema escuro" }));
+    expect(document.documentElement.dataset.tema).toBe("escuro");
+    expect(window.localStorage.getItem("radar-tema")).toBe("escuro");
+
+    fireEvent.click(screen.getByRole("button", { name: "Usar tema claro" }));
+    expect(document.documentElement.dataset.tema).toBe("claro");
   });
 
   it("explica o erro e tenta de novo", async () => {

@@ -16,6 +16,7 @@ const HORA = new Intl.DateTimeFormat("pt-BR", {
   hourCycle: "h23",
 });
 const DIA_SEMANA = new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, weekday: "short" });
+const MES_CURTO = new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, month: "short" });
 
 const MS_DIA = 86_400_000;
 
@@ -38,6 +39,16 @@ export function diasAte(alvo: string | Date, agora: Date): number {
 
 export function dataCurta(iso: string | Date): string {
   return DIA_MES.format(paraData(iso));
+}
+
+/** Dia do mês em Brasília, sem zero à esquerda: "5", "28". */
+export function diaDoMes(iso: string | Date): string {
+  return String(Number(diaBR(paraData(iso)).slice(8)));
+}
+
+/** Mês abreviado em Brasília: "out", "dez". */
+export function mesCurto(iso: string | Date): string {
+  return MES_CURTO.format(paraData(iso)).replace(".", "");
 }
 
 export function horaCurta(iso: string | Date): string {

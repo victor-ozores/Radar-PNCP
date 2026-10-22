@@ -1,14 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Destaque } from "./components/Destaque";
+import { BarraTopo } from "./components/BarraTopo";
+import { Esqueleto } from "./components/Esqueleto";
 import { FaixaRobo } from "./components/FaixaRobo";
+import { Hero } from "./components/Hero";
 import { Lista } from "./components/Lista";
 import { Panorama } from "./components/Panorama";
 import { Rodape } from "./components/Rodape";
-import { Topo } from "./components/Topo";
 import { PAINEL_URL, PNCP_URL } from "./config";
 import { carregaPainel } from "./lib/carrega";
-import { PainelInvalido, combinam, resumir, resumoValores, vigentes } from "./lib/painel";
+import {
+  FILTRO_INICIAL,
+  PainelInvalido,
+  combinam,
+  resumir,
+  resumoValores,
+  vigentes,
+  type Filtro,
+} from "./lib/painel";
+import { useTema } from "./lib/tema";
 import type { Painel } from "./lib/types";
 
 type Estado =
@@ -24,6 +34,13 @@ function useAgora(intervaloMs = 60_000): Date {
     return () => clearInterval(id);
   }, [intervaloMs]);
   return agora;
+}
+
+function rolarAteLista() {
+  const lista = document.getElementById("editais");
+  if (!lista) return;
+  const reduzido = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  lista.scrollIntoView?.({ behavior: reduzido ? "auto" : "smooth", block: "start" });
 }
 
 function Erro({ mensagem, versaoNova, aoTentar }: { mensagem: string; versaoNova: boolean; aoTentar: () => void }) {
@@ -53,7 +70,9 @@ function Erro({ mensagem, versaoNova, aoTentar }: { mensagem: string; versaoNova
 export function App() {
   const [estado, setEstado] = useState<Estado>({ tipo: "carregando" });
   const [tentativa, setTentativa] = useState(0);
+  const [filtro, setFiltro] = useState<Filtro>(FILTRO_INICIAL);
   const agora = useAgora();
+  const { tema, alternar } = useTema();
 
   useEffect(() => {
     const controle = new AbortController();
@@ -79,24 +98,32 @@ export function App() {
   const resumo = useMemo(() => resumir(abertos, agora), [abertos, agora]);
   const mediana = useMemo(() => resumoValores(fortes).mediana, [fortes]);
 
+  /**
+   * Muda o filtro; `rolar` leva a pessoa até a lista. Pode rolar já: o filtro só muda o que está
+   * dentro da lista, então o ponto de chegada (o topo dela) não se mexe.
+   */
+  const mudaFiltro = useCallback((novo: Filtro, rolar = false) => {
+    setFiltro(novo);
+    if (rolar) rolarAteLista();
+  }, []);
+
   return (
     <div className="pagina">
-      <Topo perfil={painel?.perfil ?? null} />
+      <a className="pular" href="#editais">
+        Pular para a lista de editais
+      </a>
+      <BarraTopo robo={painel?.robo ?? null} agora={agora} tema={tema} aoAlternarTema={alternar} />
       <main>
-        {estado.tipo === "carregando" && (
-          <p className="carregando" role="status">
-            Carregando os editais…
-          </p>
-        )}
+        {estado.tipo === "carregando" && <Esqueleto />}
         {estado.tipo === "erro" && (
           <Erro mensagem={estado.mensagem} versaoNova={estado.versaoNova} aoTentar={tentarDeNovo} />
         )}
         {painel && (
           <>
+            <Hero painel={painel} resumo={resumo} mediana={mediana} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
             <FaixaRobo robo={painel.robo} geradoEm={painel.gerado_em} agora={agora} />
-            <Destaque painel={painel} resumo={resumo} mediana={mediana} agora={agora} />
-            <Panorama editais={fortes} agora={agora} />
-            <Lista editais={abertos} agora={agora} />
+            <Panorama editais={fortes} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
+            <Lista editais={abertos} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
           </>
         )}
       </main>

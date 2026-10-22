@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { dobra, formataValor, limpaObjeto, localidade, valorConfiavel } from "./formatos";
+import {
+  dobra,
+  estaGritando,
+  formataValor,
+  limpaObjeto,
+  localidade,
+  suavizaCaixa,
+  valorConfiavel,
+} from "./formatos";
 
 describe("formataValor", () => {
   it.each([
@@ -40,6 +48,51 @@ describe("limpaObjeto", () => {
   it("nunca devolve texto vazio", () => {
     expect(limpaObjeto("[Publicenter]")).toBe("[Publicenter]");
     expect(limpaObjeto("  Obra  ")).toBe("Obra");
+  });
+});
+
+describe("suavizaCaixa", () => {
+  it("transforma CAIXA ALTA em texto normal, mantendo siglas e números", () => {
+    expect(
+      suavizaCaixa("CONTRATAÇÃO DE EMPRESA ESPECIALIZADA PARA EXECUÇÃO DA OBRA DA UBS DO BAIRRO RURAL"),
+    ).toBe("Contratação de Empresa Especializada para Execução da Obra da UBS do Bairro Rural");
+    expect(suavizaCaixa("OBRAS NA RODOVIA PRC-467 E PRS-495 NO LOTE II")).toBe(
+      "Obras na Rodovia PRC-467 e PRS-495 no Lote II",
+    );
+  });
+
+  it("não mexe em texto que já está em caixa normal ou é curto", () => {
+    expect(suavizaCaixa("Contratação de empresa para a reforma da escola")).toBe(
+      "Contratação de empresa para a reforma da escola",
+    );
+    expect(suavizaCaixa("Reforma da UBS e do CRAS")).toBe("Reforma da UBS e do CRAS");
+    expect(suavizaCaixa("OBRA CIVIL")).toBe("OBRA CIVIL"); // curto demais para ter certeza
+  });
+
+  it("mantém o pronome colado em minúsculas e o à com crase", () => {
+    expect(suavizaCaixa("REFERE-SE A CONTRATAÇÃO DE EMPRESA LOCALIZADA À RUA DAS FLORES")).toBe(
+      "Refere-se a Contratação de Empresa Localizada à Rua das Flores",
+    );
+  });
+
+  it("devolve a letra solta e o artigo certos", () => {
+    expect(suavizaCaixa("EXECUÇÃO DA OBRA NO BLOCO B A PARTIR DO PROJETO")).toBe(
+      "Execução da Obra no Bloco B a Partir do Projeto",
+    );
+  });
+
+  it("restaura acentos só nas palavras conhecidas de nomes de órgãos", () => {
+    expect(suavizaCaixa("MUNICIPIO DE BONFINOPOLIS DE MINAS", true)).toBe("Município de Bonfinopolis de Minas");
+    expect(suavizaCaixa("TRIBUNAL DE JUSTICA DO ESTADO DE MINAS GERAIS", true)).toBe(
+      "Tribunal de Justiça do Estado de Minas Gerais",
+    );
+    expect(suavizaCaixa("MUNICIPIO DE BONFINOPOLIS DE MINAS")).toBe("Municipio de Bonfinopolis de Minas");
+  });
+
+  it("estaGritando", () => {
+    expect(estaGritando("CONTRATAÇÃO DE EMPRESA")).toBe(true);
+    expect(estaGritando("Contratação de Empresa Especializada")).toBe(false);
+    expect(estaGritando("OBRA")).toBe(false);
   });
 });
 
