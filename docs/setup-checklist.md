@@ -48,13 +48,14 @@ porque o PNCP bloqueia (HTTP 429) quem consulta rápido demais.
 4. Em **Actions**, rode manualmente o workflow **Pipeline diário**:
    - 1ª vez: `modo = bootstrap` (carga inicial das propostas abertas, ~20 a 40 min);
    - depois: `modo = daily`. Confira a mensagem no Telegram e o commit novo na branch `data`.
+   - `modo = reconcile` é a conferência semanal (não manda Telegram). Ela já roda sozinha todo
+     domingo à noite (19:47 em Brasília, com o atraso de sempre) e leva cerca de 45 minutos (medido em 22/10: 46 min, 209 chamadas).
 5. Teste o alerta de falha: rode **Pipeline diário** com `simulate_failure = true`.
-   A mensagem 🚨 deve chegar no Telegram.
+   A mensagem 🚨 deve chegar no Telegram. Essa falha de teste não entra na taxa de sucesso.
 
 ## 4. Painel online (GitHub Pages, grátis)
 
-O Power BI foi descartado: a licença gratuita não atualiza sozinha. O painel é uma página estática
-em `site/` que lê `export/painel.json` da branch `data`.
+O painel é uma página estática em `site/` que lê `export/painel.json` da branch `data`.
 
 1. No repositório: **Settings > Pages > Build and deployment > Source = GitHub Actions**. Sem esse
    passo o workflow **Painel (GitHub Pages)** falha no último passo (*deploy*).
@@ -67,7 +68,7 @@ em `site/` que lê `export/painel.json` da branch `data`.
 Fonte dos dados do painel (pública, sem login):
 `https://raw.githubusercontent.com/victor-ozores/Radar-PNCP/data/export/painel.json`
 
-Para mexer na página no seu computador, veja *Painel online* no README.
+Para mexer na página no seu computador, veja *Detalhes técnicos > Rodar no seu computador* no README.
 
 ## 5. Vigia externo (Healthchecks.io, grátis)
 
@@ -80,12 +81,45 @@ externo cobre isso.
    e-mail (ou outra) no check. Prefira Cron a *Simple*: no Simple o prazo conta a partir do último
    ping, e uma execução manual no meio do dia adiaria o alerta.
    **Por que 7 h:** na primeira medição (20/10/2026) as execuções agendadas do GitHub chegaram de
-   3 h 09 a 5 h 25 atrasadas. Com 3 h de folga o check ficou DOWN sem falha real. Reveja esse
-   valor depois de algumas semanas, com mais dados.
+   3 h 09 a 5 h 25 atrasadas (as execuções diárias de 20, 21 e 22/10 começaram de 4 h 49 a 5 h 00
+   depois da hora). Com 3 h de folga o check ficou DOWN sem falha real. Reveja esse valor depois
+   de algumas semanas, com mais dados.
 3. Copie o **ping URL** (`https://hc-ping.com/...`) e cadastre como secret `HEALTHCHECK_URL` em
    *Settings > Secrets and variables > Actions*. **Trate como segredo**: quem tem o endereço pode
    mandar um aviso falso. Nunca coloque no código, no README ou em commit.
 4. Rode **Pipeline diário** (`modo = daily`). O passo *Avisar o vigia externo* deve terminar com
    "Vigia externo avisado (HTTP 200)" e o check no site deve ficar verde (*up*).
 
-O aviso só é enviado quando a execução diária termina bem. Sem o secret, o passo é ignorado.
+O aviso só é enviado quando a execução diária termina bem (a conferência de domingo não avisa o
+vigia, para não esconder uma rotina diária que faltou). Sem o secret, o passo é ignorado.
+
+## 6. Limpeza da branch `data` (a cada 6 meses)
+
+A branch `data` guarda um commit por execução. Medido em 19 a 22/10/2026, cada dia acrescenta de
+0,4 a 3 MB comprimidos (o dia de 22/10 mexeu em 53 arquivos por causa das atualizações e chegou a
+3 MB). Com ~3 MB por dia são ~1,1 GB por ano, acima dos 1 GB que o GitHub recomenda, e quem clona o
+repositório baixa essa história inteira. Por isso a limpeza é **semestral** (~550 MB no pior
+caso), ou antes disso se o repositório passar de ~500 MB. Depois de uma semana de rotina, meça de
+novo: se o ritmo ficar abaixo de 1 MB por dia, dá para espaçar.
+
+Para ver quanto o repositório pesa (em KB; o número demora a refletir mudanças):
+
+```powershell
+gh api repos/victor-ozores/Radar-PNCP --jq .size
+```
+
+Para limpar, junte todo o histórico num único commit. **Isso apaga o passado da branch `data`**
+(os arquivos de hoje continuam iguais). Antes, confira na aba *Actions* que nenhuma execução está
+em andamento:
+
+```powershell
+git clone --branch data --single-branch https://github.com/victor-ozores/Radar-PNCP.git radar-data
+cd radar-data
+git checkout --orphan limpo
+git add -A
+git commit -m "dados: historico compactado em AAAA-MM-DD"
+git push --force origin limpo:data
+```
+
+O GitHub descarta os objetos antigos sozinho, em algumas horas ou dias. A próxima execução diária
+segue normalmente. Depois, apague a pasta `radar-data`.

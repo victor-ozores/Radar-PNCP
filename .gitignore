@@ -17,7 +17,3 @@ data_local/
 *.duckdb
 *.parquet
 !tests/fixtures/*.parquet
-
-# Power BI (arquivos temporários)
-*.pbix.bak
-.pbi/

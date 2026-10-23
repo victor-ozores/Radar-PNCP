@@ -1,7 +1,7 @@
 # O que a API do PNCP mostrou (achados de qualidade e comportamento)
 
-Medido com chamadas reais à API de consulta em **19/10/2026**. Não é documentação oficial: o
-comportamento pode mudar. As contagens vêm de uma amostra pequena e servem para dimensionar o
+Medido com chamadas reais à API de consulta entre **19 e 22/10/2026**. Não é documentação oficial:
+o comportamento pode mudar. As contagens vêm de uma amostra pequena e servem para dimensionar o
 pipeline, não como estatística do PNCP. Os números do pipeline em produção ficam na tabela
 `pipeline_runs` e em `queries/03_qualidade_dos_dados.sql`.
 
@@ -19,6 +19,9 @@ pipeline, não como estatística do PNCP. Os números do pipeline em produção 
 | A UF fica em `unidadeOrgao.ufSigla` | Não existe `unidadeFederativa` no item | `normalize.py` |
 | `/proposta` com `dataFinal` devolve propostas abertas que encerram **até** essa data | 1ª página: encerramentos entre 20/10 e 26/10 para `dataFinal` = 26/10; publicações de nov/2024 a set/2026 | Usado na carga inicial (`bootstrap`) |
 | Sem valor estimado chega como **0**, não como nulo | Amostra de 50 pregões eletrônicos em SP: 13 com valor nulo ou zero | `valor_zero` e `valor_ausente` viram métrica; o valor é gravado como nulo e não penaliza o score |
+| Valor simbólico (por exemplo R$ 0,04) em vez de zero | Apareceu nos dados reais de 22/10/2026 | Abaixo de R$ 1 mil o painel e o alerta mostram "valor não informado" (o guardado não muda) |
+| Edital **excluído** responde **HTTP 410** na consulta individual (`/orgaos/{cnpj}/compras/{ano}/{seq}`) e some das listagens, sem aviso | 2 dos 8 editais "sumidos" de 22/10/2026 (ver abaixo) | `conferencia.py` marca como "Excluída do PNCP" (`situacao_id` 99) e tira das listas; a linha fica no Parquet |
+| A consulta individual traz **o mesmo conteúdo** da listagem | 10 de 10 editais com `row_hash` igual | Comparar o hash basta para saber se algo mudou |
 
 ## Volume (publicados em 16/10/2026, Brasil inteiro)
 
@@ -45,7 +48,25 @@ incluí-la no perfil.
   sempre inclui o link público do PNCP, montado a partir de CNPJ, ano e sequencial.
 * **`usuarioNome` traz nomes de fornecedores de software** nos itens vistos (por exemplo
   "BLL Compras", "Fiorilli Software"), mas o campo pode conter pessoa física em outros casos.
-  Por isso entra no descarte da allowlist (veja README, seção "Dados e LGPD").
+  Por isso entra no descarte da allowlist (veja README, seção "Custa R$ 0 e respeita a LGPD").
+* **Nome do órgão sem acento e em CAIXA ALTA** ("MUNICIPIO DE IBIRITE"), enquanto a cidade do mesmo
+  edital vem certa ("Ibirité"): em 22/10/2026, 356 dos 1.394 editais do painel tinham a cidade sem
+  acento no nome do órgão. A tela e o Telegram copiam a grafia da cidade (`nome_do_orgao` em
+  `normalize.py`, igual em `site/src/lib/formatos.ts`); o texto guardado não muda.
+* **O mesmo edital publicado duas vezes** (mesmo órgão, valor, prazo e texto): em 22/10/2026, 41 dos
+  1.338 editais que combinam tinham um gêmeo (cerca de 3%; entre todos os abertos, cerca de 5%).
+  Dos pares conferidos no PNCP, 2 de 3 estavam com os dois ativos (o órgão republica com outro
+  número, por exemplo "34" e "34/2026REPUBLICADO", ou publica duas vezes em minutos) e em 1 o
+  original tinha sido excluído (410). O painel e o Telegram mostram o edital uma vez, com o número e
+  o link do outro (`repetidos.py`); no alerta, cada registro é conferido no PNCP antes, para o link
+  nunca apontar para um excluído. O texto conta como o mesmo se for igual ou estiver inteiro dentro
+  do outro (a republicação costuma só acrescentar "Processo nº ..."). Na dúvida não junta: há pares
+  com o mesmo valor e prazo e textos bem diferentes ("brinquedos parquinho" e uma descrição longa de
+  playground) que provavelmente são o mesmo edital, mas também há par com valor e prazo iguais e
+  objetos sem relação alguma, então o texto precisa bater.
+* **Consultoria, fiscalização, gerenciamento e projeto** não são obra, mas citam "obra" e
+  "engenharia": eram 2,6% dos relevantes (38 de 1.448 em 22/10/2026). Têm regra própria em
+  `scoring.py` (`servicos_intelectuais` no `config.yaml`).
 
 ## Conferência com o PNCP ao vivo (21/10/2026)
 
@@ -55,8 +76,8 @@ Medido comparando o que o robô guardou com a API e com a página pública de ca
 |---|---|
 | Link público `pncp.gov.br/app/editais/{cnpj}/{ano}/{sequencial}` | Abre o edital certo (conferido no navegador: objeto, valor e prazo iguais aos guardados) |
 | 60 editais relevantes sorteados, conferidos um a um (situação, prazo, valor) | 0 desatualizados |
-| Editais com prazo em até 7 dias (13 buscas): lista de propostas abertas da API contra o guardado | 829 em comum; 8 guardados com **prazo prorrogado** (por exemplo, 22/10 para 10/12); 2 que a API tinha e o robô não |
-| Consulta por **data de atualização** (últimos 3 dias) | Trouxe 7 dos 8 prazos prorrogados; o oitavo sumiu da API (a consulta individual também não o devolve) |
+| Editais com prazo em até 7 dias (13 buscas): lista de propostas abertas da API contra o guardado | 829 em comum; 8 guardados que a API já não listava (7 deles com **prazo prorrogado**, por exemplo de 22/10 para 10/12); 2 que a API tinha e o robô não |
+| Consulta por **data de atualização** (últimos 3 dias) | Trouxe 7 dos 8 prazos prorrogados; o oitavo não apareceu nela |
 
 Consequências para o desenho:
 
@@ -74,3 +95,23 @@ Consequências para o desenho:
 * **O que o filtro deixa de fora** (medido): obras de recapeamento, calçamento e muro de contenção
   não estavam no perfil (50 editais); entraram. "Drenagem" e "esgotamento sanitário" foram testados
   e rejeitados (trouxeram cânula de drenagem venosa e um software).
+
+## Editais excluídos e prazos velhos (22/10/2026)
+
+Mesmo lendo as alterações, sobraram editais guardados como abertos que a lista de propostas abertas
+da API já não trazia: **8 de 837 (1,0%)** entre os de prazo em até 7 dias. A consulta individual de
+cada um explicou todos: 2 **excluídos** do PNCP (HTTP 410, que nenhuma listagem avisa) e 6 com
+**prazo prorrogado** antes de o robô passar a ler as alterações.
+
+Primeira conferência semanal de verdade (cópia local dos dados, janela de 14 dias): 16 buscas,
+7.667 linhas lidas, 209 chamadas, 46 minutos, nenhum bloqueio 429. Dos 47 editais guardados como
+abertos que a listagem não trouxe, **20 estavam excluídos** e **27 tinham mudado** (prazo, valor ou
+situação); nenhuma resposta incerta. No painel isso tirou 2 excluídos e 7 suspensos ou anulados e
+corrigiu 3 prazos e 3 valores. Comparando de novo com a API, os guardados como abertos que a API não
+lista caíram de 8 em 837 (1,0%) para 3 em 819 (0,4%). Consulta individual dos 3: 1 **excluído** (410)
+e 2 com **prazo prorrogado** no PNCP em 22/10 (às 12:23 e às 15:45) que a lista de propostas abertas
+ainda mostrava com o prazo antigo durante a conferência das 19:20. Ou seja, **a lista do PNCP pode
+demorar horas para refletir uma mudança**, e só a consulta individual é a fonte. As prorrogações
+entram na leitura de alterações do dia seguinte; a exclusão, que não tem aviso nenhum, só é pega na
+conferência do domingo seguinte, ou na verificação feita antes do alerta, se o edital entrar na
+lista de "Prazos chegando". Por isso a página continua pedindo para conferir o edital no PNCP.
