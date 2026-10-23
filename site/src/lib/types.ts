@@ -14,8 +14,13 @@ export interface Repetido {
 
 export interface Edital {
   id: string;
+  /** Resumo (o começo do texto, com "…" se foi cortado). */
   objeto: string;
+  /** O texto inteiro, só quando o resumo cortou alguma coisa (o arquivo do Excel leva este). */
+  objeto_completo?: string | null;
   orgao: string;
+  /** O nome inteiro do órgão, só quando o resumo cortou alguma coisa. */
+  orgao_completo?: string | null;
   uf: string | null;
   municipio: string | null;
   modalidade: string;

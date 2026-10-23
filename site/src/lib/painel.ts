@@ -24,10 +24,12 @@ export const ROTULO_COMBINA: Record<Combina, string> = {
 };
 
 /** Como o edital chega no arquivo: `link` e `repetidos` ainda não foram conferidos. */
-type EditalBruto = Omit<Edital, "link" | "repetidos" | "numero"> & {
+type EditalBruto = Omit<Edital, "link" | "repetidos" | "numero" | "objeto_completo" | "orgao_completo"> & {
   link?: unknown;
   repetidos?: unknown;
   numero?: unknown;
+  objeto_completo?: unknown;
+  orgao_completo?: unknown;
 };
 
 function ehEdital(x: unknown): x is EditalBruto {
@@ -59,7 +61,7 @@ function leRepetidos(x: unknown): Repetido[] {
     return [
       {
         id: o.id,
-        numero: numeroLimpo(o.numero),
+        numero: textoOuNulo(o.numero),
         link: linkSeguro(o.link),
         publicado: typeof o.publicado === "string" ? o.publicado : null,
       },
@@ -67,10 +69,17 @@ function leRepetidos(x: unknown): Repetido[] {
   });
 }
 
-const numeroLimpo = (x: unknown): string | null => (typeof x === "string" && x.trim() ? x.trim() : null);
+const textoOuNulo = (x: unknown): string | null => (typeof x === "string" && x.trim() ? x.trim() : null);
 
 function leEdital(e: EditalBruto): Edital {
-  return { ...e, numero: numeroLimpo(e.numero), link: linkSeguro(e.link), repetidos: leRepetidos(e.repetidos) };
+  return {
+    ...e,
+    numero: textoOuNulo(e.numero),
+    link: linkSeguro(e.link),
+    repetidos: leRepetidos(e.repetidos),
+    objeto_completo: textoOuNulo(e.objeto_completo), // texto ou nada (o arquivo é de fora da página)
+    orgao_completo: textoOuNulo(e.orgao_completo),
+  };
 }
 
 /** Confere o arquivo antes de a página confiar nele. Edital com defeito é descartado, não derruba a página. */

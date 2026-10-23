@@ -26,6 +26,9 @@ export interface ContextoDoArquivo {
   pncpUrl: string;
 }
 
+/** O que o Excel mostra no lugar do endereço (a fórmula HYPERLINK abre o endereço ao clicar). */
+export const TEXTO_DO_LINK = "Abrir no PNCP";
+
 export const ABA_EDITAIS = "Editais";
 export const ABA_SOBRE = "Sobre este arquivo";
 
@@ -55,6 +58,7 @@ const COLUNAS: Coluna[] = [
   },
   { titulo: "Faltam (dias)", largura: 10, celula: (l) => ({ value: l.faltam, type: Number }) },
   { titulo: "Combina", largura: 16, celula: (l) => texto(l.combina) },
+  { titulo: "Nota (0 a 100)", largura: 11, celula: (l) => ({ value: l.nota, type: Number }) },
   { titulo: "Objeto", largura: 62, celula: (l) => texto(l.objeto, { wrap: true }) },
   { titulo: "Órgão", largura: 34, celula: (l) => texto(l.orgao, { wrap: true }) },
   { titulo: "UF", largura: 6, celula: (l) => texto(l.uf) },
@@ -77,7 +81,7 @@ const COLUNAS: Coluna[] = [
         ? null
         : {
             // fórmula sem o "=" na frente: é como o arquivo guarda; o Excel mostra o texto e abre o endereço ao clicar
-            value: `HYPERLINK("${l.link.replaceAll('"', "%22")}","Abrir no PNCP")`,
+            value: `HYPERLINK("${l.link.replaceAll('"', "%22")}","${TEXTO_DO_LINK}")`,
             type: "Formula",
             textColor: "#0563c1",
             textDecoration: { underline: true },
@@ -151,7 +155,7 @@ export function insereNoLugar(xml: string, nome: (typeof ORDEM_DA_ABA)[number], 
 
 /**
  * A biblioteca não sabe desenhar filtros nas colunas nem lista suspensa; ela deixa o programa mexer no XML da
- * aba. Estas duas extensões rodam depois das regras de cor dela e só mexem na aba "Editais".
+ * aba. Estas extensões rodam depois das regras de cor dela e só mexem na aba "Editais".
  */
 function extensoes(linhas: number): Feature<Blob>[] {
   const ultima = linhas + 1; // a linha 1 é o cabeçalho
@@ -190,15 +194,45 @@ function extensoes(linhas: number): Feature<Blob>[] {
     },
   };
 
-  return [filtroNasColunas, listaDeSituacao];
+  // Uma fórmula sem valor guardado aparece vazia enquanto o Excel não recalcula: arquivo baixado da internet abre
+  // em "Modo de Exibição Protegido", que não recalcula. Guardar o texto junto (`t="str"` e `<v>`) resolve.
+  const valorGuardadoNoLink: Feature<Blob> = {
+    files: {
+      transform: {
+        "xl/worksheets/sheet{id}.xml": {
+          transform: (xml, opcoes) =>
+            opcoes.sheet === ABA_EDITAIS
+              ? xml.replace(
+                  /<c r="([A-Z]+[0-9]+)"((?: [a-zA-Z]+="[^"]*")*)><f>(HYPERLINK\([^<]*\))<\/f><\/c>/g,
+                  `<c r="$1"$2 t="str"><f>$3</f><v>${TEXTO_DO_LINK}</v></c>`,
+                )
+              : xml,
+        },
+      },
+    },
+  };
+
+  return [filtroNasColunas, listaDeSituacao, valorGuardadoNoLink];
 }
 
 // ---------------------------------------------------------------------------- aba "Sobre este arquivo"
 
+/** Os filtros da tela e se eles valem para o arquivo (só valem quando a escolha foi "todos os da lista"). */
+export function textoDosFiltros(escopo: Escopo, filtros: string[]): string {
+  if (filtros.length === 0) return "Nenhum filtro estava ligado na tela.";
+  const lista = filtros.join("; ");
+  if (escopo === "filtrados") return `${lista}. Estes filtros valem para o arquivo: só entraram os editais que passam por eles.`;
+  const que = escopo === "selecionados" ? "só os editais marcados" : "todos os editais do painel";
+  return `${lista}. Estavam ligados na tela, mas não limitam este arquivo: ele leva ${que}.`;
+}
+
+/** Como se lê a coluna "Nota (0 a 100)". */
+export const TEXTO_DA_NOTA =
+  "É a pontuação do robô, somada a partir das palavras do objeto, do estado, da modalidade e do valor, segundo o perfil de demonstração. 80 ou mais: Combina muito. De 60 a 79: Combina. De 40 a 59: Combina em parte. Abaixo de 40 o edital não entra. Serve para ordenar; não substitui a leitura do edital.";
+
 function abaSobre(quantos: number, ctx: ContextoDoArquivo): Cell[][] {
   const rotulo = (v: string): Cell => ({ value: v, fontWeight: "bold", alignVertical: "top" }) as Cell;
   const corpo = (v: string): Cell => ({ value: v, wrap: true, alignVertical: "top" }) as Cell;
-  const filtros = ctx.filtros.length > 0 ? ctx.filtros.join("; ") : "Nenhum";
   return [
     [{ value: "Radar de Licitações PNCP", fontWeight: "bold", fontSize: 16 } as Cell, null],
     [{ value: "Arquivo exportado do painel público", textColor: "#555555" } as Cell, null],
@@ -206,8 +240,9 @@ function abaSobre(quantos: number, ctx: ContextoDoArquivo): Cell[][] {
     [rotulo("Gerado em"), corpo(`${dataEHoraCompleta(ctx.agora)} (horário de Brasília)`)],
     [rotulo("Dados do painel de"), corpo(dataEHoraCompleta(ctx.geradoEm))],
     [rotulo("O que foi exportado"), corpo(textoDoEscopo(ctx.escopo, quantos))],
-    [rotulo("Filtros ligados"), corpo(filtros)],
+    [rotulo("Filtros da tela"), corpo(textoDosFiltros(ctx.escopo, ctx.filtros))],
     [rotulo("Perfil usado"), corpo(`Perfil de demonstração: ${ctx.perfil}`)],
+    [rotulo("Nota (0 a 100)"), corpo(TEXTO_DA_NOTA)],
     [rotulo("Colunas verdes"), corpo("Situação, Responsável e Observações ficam em branco para a sua equipe preencher. A coluna Situação tem uma lista de opções.")],
     [rotulo("Atenção"), corpo("Confira sempre o edital no PNCP: o prazo, a situação e o texto podem ter mudado depois que o robô leu.")],
     [rotulo("É uma demonstração, não um limite"), corpo(AVISO_DEMONSTRACAO)],

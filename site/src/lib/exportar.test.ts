@@ -28,6 +28,25 @@ describe("linhaDoEdital", () => {
     expect(l.combina).toBe("Combina muito");
   });
 
+  it("leva a nota e o texto inteiro do objeto e do órgão quando existem, senão o resumo", () => {
+    const cheio = linhaDoEdital(
+      edital({
+        nota: 72,
+        objeto: "OBRAS DE REFORMA DA ESCOLA MUNICIPAL JARDIM…",
+        objeto_completo: "OBRAS DE REFORMA DA ESCOLA MUNICIPAL JARDIM MONTANHÊS, COM FORNECIMENTO DE MATERIAIS",
+        orgao: "SECRETARIA MUNICIPAL DE OBRAS…",
+        orgao_completo: "SECRETARIA MUNICIPAL DE OBRAS E INFRAESTRUTURA",
+        municipio: "Campinas",
+      }),
+      AGORA,
+    );
+    expect(cheio.nota).toBe(72);
+    expect(cheio.objeto).toBe("Obras de Reforma da Escola Municipal Jardim Montanhês, com Fornecimento de Materiais");
+    expect(cheio.orgao).toBe("Secretaria Municipal de Obras e Infraestrutura");
+    const curto = linhaDoEdital(edital({ objeto: "Reforma da escola", objeto_completo: null }), AGORA);
+    expect(curto.objeto).toBe("Reforma da escola");
+  });
+
   it("guarda o prazo como o relógio de Brasília, para o Excel mostrar o mesmo horário em qualquer computador", () => {
     const l = linhaDoEdital(edital({ prazo: "2026-10-26T07:59:00-03:00" }), AGORA);
     expect(l.prazo.toISOString()).toBe("2026-10-26T07:59:00.000Z"); // o "Z" aqui é só o jeito de guardar o relógio

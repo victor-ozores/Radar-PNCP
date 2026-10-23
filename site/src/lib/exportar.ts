@@ -24,6 +24,8 @@ export interface LinhaExcel {
   /** Dias de calendário até o prazo, na hora em que o arquivo foi gerado. */
   faltam: number;
   combina: string;
+  /** A nota do robô, de 0 a 100. */
+  nota: number;
   objeto: string;
   orgao: string;
   uf: string;
@@ -45,8 +47,10 @@ export function linhaDoEdital(e: Edital, agora: Date): LinhaExcel {
     prazo: comoRelogio(e.prazo),
     faltam: Math.max(0, diasAte(e.prazo, agora)),
     combina: ROTULO_COMBINA[e.combina],
-    objeto: suavizaCaixa(limpaObjeto(e.objeto)),
-    orgao: nomeDoOrgao(e.orgao, e.municipio),
+    nota: e.nota,
+    // o arquivo leva o texto inteiro; a lista da página mostra só o resumo
+    objeto: suavizaCaixa(limpaObjeto(e.objeto_completo ?? e.objeto)),
+    orgao: nomeDoOrgao(e.orgao_completo ?? e.orgao, e.municipio),
     uf: e.uf ?? "",
     municipio: e.municipio ?? "",
     modalidade: e.modalidade,
