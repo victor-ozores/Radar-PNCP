@@ -9,7 +9,7 @@
 
 ### 👉 [Abrir o painel ao vivo](https://victor-ozores.github.io/Radar-PNCP/)
 
-[![Painel do Radar: números do dia, gráficos e lista de editais com filtros](docs/img/painel.png)](https://victor-ozores.github.io/Radar-PNCP/)
+[![Painel do Radar: resumo do dia, painel de status do robô, gráficos e lista de editais com filtros ao lado](docs/img/painel.png)](https://victor-ozores.github.io/Radar-PNCP/)
 
 ## Para que serve
 
@@ -27,7 +27,7 @@ O Radar faz essa busca sozinho e entrega:
 
 | Quero... | Como |
 |---|---|
-| **Só olhar os editais** | Abra o [painel](https://victor-ozores.github.io/Radar-PNCP/). Filtre por estado, prazo (de uma data a outra) ou valor. Cada edital leva ao PNCP. |
+| **Só olhar os editais** | Abra o [painel](https://victor-ozores.github.io/Radar-PNCP/). Filtre por estado, prazo (de uma data a outra) ou valor. Toque no **?** para ver o que cada termo quer dizer. Cada edital leva ao PNCP. |
 | **Receber o resumo no Telegram** | Faça uma cópia do projeto e crie o seu bot (uns 20 minutos, sem custo): [passo a passo](docs/setup-checklist.md). |
 | **Mudar o que o robô procura** | Edite o [`config.yaml`](config.yaml): estados, modalidades, palavras e faixa de valor. Não precisa mexer em código. |
 
@@ -95,7 +95,7 @@ flowchart TD
         A["Busca no PNCP<br/>novos dos últimos 3 dias<br/>e alterados de hoje e ontem"] --> B["Limpa<br/>só campos permitidos<br/>sem CPF, e-mail e telefone"]
         B --> C[("Grava em Parquet<br/>1 arquivo por dia")]
         C --> D["Dá nota de 0 a 100<br/>regras do config.yaml"]
-        D --> E["Confere no PNCP<br/>os prazos que vai listar"]
+        D --> E["Confere no PNCP, um a um,<br/>os que vencem em até 3 dias"]
         E --> F["Resumo no Telegram"]
         F --> G["Gera painel.json e CSVs"]
         G --> R["Atualiza o status<br/>status.json e selo"]
@@ -111,7 +111,7 @@ flowchart TD
 2. **Limpa** cada registro: guarda só os campos de uma lista permitida e remove CPF, e-mail e telefone do texto livre.
 3. **Grava** em Parquet particionado por dia. Rodar duas vezes a mesma janela não muda nenhum byte.
 4. **Pontua** de 0 a 100 com regras do `config.yaml` e guarda o motivo de cada nota.
-5. **Confere no PNCP**, antes de listar, os editais de "Prazos chegando" (até 15 consultas): o excluído ou prorrogado sai da lista e o guardado é corrigido.
+5. **Confere no PNCP**, um a um, os editais que combinam e vencem em até 3 dias (até 100 consultas, o que vence primeiro antes) e, antes de listar, os de "Prazos chegando" (até 15 consultas): o excluído ou prorrogado é corrigido e sai da lista.
 6. **Avisa** no Telegram: novos relevantes, prazos que vencem em 2 a 7 dias (`alerta.prazo_minimo_dias`) e um aviso se alguma busca falhou.
 7. **Publica** `export/painel.json` (só os abertos que combinam, com prazo em até 30 dias) e os CSVs na branch `data`. A página lê o `painel.json` direto do navegador.
 8. **Registra** a execução em `pipeline_runs`, `status.json` e no selo do README.
@@ -211,7 +211,11 @@ Há exemplos em [`queries/`](queries): editais abertos, volume por UF, qualidade
 * O cartão mostra o número do edital e, quando o órgão publicou o mesmo edital duas vezes, o número e o link do outro registro. Os números do painel contam cada edital uma vez.
 * Valores abaixo de R$ 1 mil aparecem como "valor não informado" (existe R$ 0,04 nos dados reais). Os números valem só para as UFs e modalidades que o robô acompanha.
 * Se o arquivo não carrega, a página explica e oferece tentar de novo; se ele tem uma versão que a página não conhece, pede para recarregar.
-* O tema claro/escuro segue o sistema (o botão da barra troca e a página lembra a escolha) e as animações respeitam a opção "reduzir movimento" do sistema.
+* O painel do robô mostra, como numa página de status de serviço, se ele está em dia, há quanto tempo atualizou, a taxa de sucesso dos últimos 30 dias, uma barra por rodada (as últimas 14; a altura e a legenda dizem se deu certo) e o que a última rodada fez, em quatro passos. Passa para "Atenção" quando faz mais de 36 horas sem atualizar.
+* O "resumo de hoje" e a frase de cada gráfico saem dos próprios dados, não de texto fixo: se os números mudam, a frase muda junto (`site/src/lib/historia.ts`, com testes).
+* Os termos técnicos têm um **?** com a explicação. Abre com o mouse, com o teclado (Tab) ou com o toque; Esc ou um novo toque fecha.
+* Os filtros ficam numa coluna ao lado da lista e acompanham a rolagem no computador; no celular ficam atrás do botão "Filtrar".
+* A página tem um tema só, escuro e suave, sem botão para trocar (cores conferidas para contraste e daltonismo). As animações respeitam a opção "reduzir movimento" do sistema.
 
 ### Indicadores e números medidos
 
@@ -231,7 +235,7 @@ Até 22/10/2026 o robô rodou sozinho 3 vezes (20, 21 e 22/10), todas com sucess
 | A API do PNCP bloqueia (erro 429) quem consulta rápido | Pausa de 4 s entre as chamadas e espera de 30, 60 e 120 s quando bloqueia. Desde então, nenhum bloqueio |
 | O GitHub atrasa o horário agendado em algumas horas (medido de 3 h 09 a 5 h 25) | Aceito. O vigia externo tem 7 h de folga para não dar alarme falso |
 | Prazos prorrogados (cerca de 1% dos editais que vencem em 7 dias) não apareciam | O robô lê também os editais alterados e, aos domingos, confere um a um no PNCP os que a listagem não confirma |
-| Edital **excluído** do PNCP continuava no robô (2 de 837 em 22/10) | A conferência semanal e a de antes do alerta marcam como "Excluída do PNCP" e tiram das listas |
+| Edital **excluído** do PNCP continuava no robô (2 de 837 em 22/10), e a lista de propostas do PNCP demora horas para mostrar uma exclusão ou prorrogação | Só a consulta individual vale. O robô a faz todo dia (os que combinam e vencem em até 3 dias), antes de cada alerta e todo domingo (até 14 dias): marca como "Excluída do PNCP" e tira das listas |
 | O mesmo edital aparecia duas vezes (o órgão republica com outro número; cerca de 3% dos que combinam) | O painel e o Telegram mostram uma vez, com o número e o link do outro registro |
 | "Aquisição de material" e "mão de obra" de limpeza apareciam como obra | Regras firmes de compra e locação; 70 casos reais viraram teste |
 | Consultoria, fiscalização e projeto apareciam como obra (2,6% dos relevantes) | Regra de "serviço de escritório": nota zero, a menos que o texto peça também a execução |

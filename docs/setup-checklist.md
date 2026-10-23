@@ -93,6 +93,11 @@ externo cobre isso.
 O aviso só é enviado quando a execução diária termina bem (a conferência de domingo não avisa o
 vigia, para não esconder uma rotina diária que faltou). Sem o secret, o passo é ignorado.
 
+A rotina diária leva de 15 a 70 minutos (a API do PNCP oscila), já com a conferência diária dos
+editais que vencem em até 3 dias. O aviso chega no fim, então, mesmo no pior caso medido (começar
+5 h 25 depois da hora e a API lenta), ele chega antes das 17:17 UTC. Se o Healthchecks começar a dar
+alarme falso, aumente a folga (*Grace Time*) para 8 horas.
+
 ## 6. Limpeza da branch `data` (a cada 6 meses)
 
 A branch `data` guarda um commit por execução. Medido em 19 a 22/10/2026, cada dia acrescenta de

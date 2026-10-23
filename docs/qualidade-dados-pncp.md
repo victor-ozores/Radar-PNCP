@@ -112,6 +112,13 @@ lista caíram de 8 em 837 (1,0%) para 3 em 819 (0,4%). Consulta individual dos 3
 e 2 com **prazo prorrogado** no PNCP em 22/10 (às 12:23 e às 15:45) que a lista de propostas abertas
 ainda mostrava com o prazo antigo durante a conferência das 19:20. Ou seja, **a lista do PNCP pode
 demorar horas para refletir uma mudança**, e só a consulta individual é a fonte. As prorrogações
-entram na leitura de alterações do dia seguinte; a exclusão, que não tem aviso nenhum, só é pega na
-conferência do domingo seguinte, ou na verificação feita antes do alerta, se o edital entrar na
-lista de "Prazos chegando". Por isso a página continua pedindo para conferir o edital no PNCP.
+entram na leitura de alterações do dia seguinte; a exclusão não tem aviso nenhum.
+
+Por isso a consulta individual passou a ser feita em três momentos: **todo dia**, nos editais que
+combinam e vencem em até 3 dias (do que vence primeiro ao que vence depois, no máximo 100
+consultas, de 12 a 23 minutos a mais na rotina); **antes de cada alerta**, nos de "Prazos chegando"
+(os já conferidos no dia não são consultados de novo); e **todo domingo**, em tudo o que a lista
+deixa de trazer até 14 dias. Quantos editais vencem em até 3 dias muda muito com o dia da semana
+(estimado para os próximos dias: 95 na sexta, 308 na segunda), por isso o teto. Se o PNCP parar de
+responder (duas respostas incertas seguidas), a conferência do dia e a do alerta desistem sem marcar
+nada. Mesmo assim a página continua pedindo para conferir o edital no PNCP.
