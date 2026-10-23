@@ -141,12 +141,29 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     os.replace(tmp, path)
 
 
+def simulada(run: dict[str, Any]) -> bool:
+    """Falha de mentirinha (`--simulate-failure`). As antigas não tinham a coluna: vê pelo texto do erro."""
+    return bool(run.get("simulado")) or "simulada" in (run.get("error_message") or "").lower()
+
+
+def execucoes_diarias(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """As execuções diárias de verdade, da mais antiga para a mais recente.
+
+    Carga inicial, reprocessamento, conferência semanal e falha simulada ficam de fora: o vigia e o
+    painel perguntam "a rotina do dia rodou?", e uma conferência de domingo não responde isso.
+    """
+    return sorted(
+        (r for r in runs if r["modo"] == "daily" and not simulada(r)), key=lambda r: r["started_at"]
+    )
+
+
 def build_status(runs: list[dict[str, Any]], now: datetime) -> dict[str, Any]:
-    ordenadas = sorted(runs, key=lambda r: r["started_at"])
-    ultima = ordenadas[-1] if ordenadas else None
-    ok = [r for r in ordenadas if r["status"] in STATUS_OK and r["finished_at"]]
+    # a última de qualquer modo: é a que o alerta de falha precisa mostrar
+    ultima = max(runs, key=lambda r: r["started_at"]) if runs else None
+    diarias = execucoes_diarias(runs)
+    ok = [r for r in diarias if r["status"] in STATUS_OK and r["finished_at"]]
     ultimo_ok = ok[-1] if ok else None
-    janela = [r for r in ordenadas if r["started_at"] >= now - timedelta(days=30)]
+    janela = [r for r in diarias if r["started_at"] >= now - timedelta(days=30)]
     sucesso_30d = (
         round(100 * sum(r["status"] in STATUS_OK for r in janela) / len(janela), 1)
         if janela
@@ -170,7 +187,7 @@ def build_status(runs: list[dict[str, Any]], now: datetime) -> dict[str, Any]:
         if ultimo_ok
         else None,
         "ultima_execucao_ok_run_id": ultimo_ok["run_id"] if ultimo_ok else None,
-        "execucoes_total": len(ordenadas),
+        "execucoes_total": len(diarias),
         "execucoes_ok": len(ok),
         "taxa_sucesso_30d_pct": sucesso_30d,
     }

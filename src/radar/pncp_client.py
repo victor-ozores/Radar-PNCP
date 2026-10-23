@@ -33,6 +33,10 @@ class PncpError(Exception):
 class PncpClientError(PncpError):
     """Resposta 4xx (exceto 429): a requisição está errada, repetir não adianta."""
 
+    def __init__(self, mensagem: str, status: int | None = None) -> None:
+        super().__init__(mensagem)
+        self.status = status
+
 
 class PncpRateLimited(PncpError):
     """429 persistente depois de esgotar o backoff."""
@@ -128,6 +132,19 @@ class PncpClient:
             params["uf"] = uf
         yield from self._paginate("/contratacoes/proposta", params)
 
+    def get_compra(self, cnpj: str, ano: int, sequencial: int) -> dict[str, Any] | None:
+        """Consulta individual de um edital, a fonte mais fresca. ``None`` se ele não existe mais.
+
+        Medido em 22/10/2026: um edital excluído do PNCP responde 410 ("A contratação informada foi
+        excluída e não pode ser consultada") e some das listagens sem aviso nenhum.
+        """
+        try:
+            return self._get(f"/orgaos/{cnpj}/compras/{ano}/{sequencial}", {})
+        except PncpClientError as exc:
+            if exc.status in (404, 410):
+                return None
+            raise
+
     # ------------------------------------------------------------------ internos
 
     def _paginate(self, path: str, params: dict[str, Any]) -> Iterator[list[dict[str, Any]]]:
@@ -201,7 +218,7 @@ class PncpClient:
                 self._backoff(2**tentativas_5xx, f"HTTP {status}")
                 continue
             if status >= 400:
-                raise PncpClientError(f"HTTP {status} em {path}: {_resumo(resp)}")
+                raise PncpClientError(f"HTTP {status} em {path}: {_resumo(resp)}", status)
             try:
                 body = resp.json()
             except ValueError as exc:

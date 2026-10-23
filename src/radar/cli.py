@@ -85,6 +85,7 @@ def _secrets() -> list[str]:
 
 def cmd_run(args: argparse.Namespace, modo: str) -> int:
     cfg = load_config(args.config)
+    dias = getattr(args, "dias", None)
     opts = RunOptions(
         data_dir=Path(args.data_dir),
         modo=modo,
@@ -93,7 +94,8 @@ def cmd_run(args: argparse.Namespace, modo: str) -> int:
         send_alerts=(modo == "daily" and not args.no_alerts),
         desde=getattr(args, "desde", None),
         ate=getattr(args, "ate", None),
-        bootstrap_dias=getattr(args, "dias", 30),
+        bootstrap_dias=dias or 30,
+        reconciliar_dias=dias if modo == "reconcile" else None,
         simulate_failure=getattr(args, "simulate_failure", False),
     )
     notifier = notifier_from_env() if opts.send_alerts and not opts.dry_run else None
@@ -220,6 +222,18 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--no-alerts", action="store_true", default=True)
     sp.add_argument("--trigger", default="manual")
 
+    sp = sub.add_parser(
+        "reconcile",
+        help="conferência semanal: corrige, no PNCP, editais abertos que a listagem não confirma",
+    )
+    comum(sp)
+    sp.add_argument(
+        "--dias", type=int, default=None, help="prazo máximo das propostas (padrão: o do config)"
+    )
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument("--no-alerts", action="store_true", default=True)
+    sp.add_argument("--trigger", default="manual")
+
     sp = sub.add_parser("check-config", help="valida o config.yaml")
     sp.add_argument("--config", default="config.yaml")
 
@@ -251,6 +265,8 @@ def main(argv: list[str] | None = None) -> int:
                 return cmd_run(args, "backfill")
             case "bootstrap":
                 return cmd_run(args, "bootstrap")
+            case "reconcile":
+                return cmd_run(args, "reconcile")
             case "check-config":
                 return cmd_check_config(args)
             case "get-chat-id":

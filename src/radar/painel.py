@@ -4,7 +4,8 @@ A página (``site/``) lê só este arquivo, direto do navegador. Ele traz apenas
 precisa ver: os editais **abertos, ativos e que combinam com o perfil**, com prazo nos próximos
 30 dias, e um resumo da saúde do robô. Contas que dependem do horário (quantos dias faltam, o
 que já venceu) a página refaz na hora, por isso os prazos vão como data e hora absolutas, com o
-fuso de Brasília (``-03:00``).
+fuso de Brasília (``-03:00``). O edital que o órgão publicou duas vezes vai uma vez só, com os
+outros registros dele em ``repetidos`` (veja ``radar.repetidos``).
 """
 
 from __future__ import annotations
@@ -14,10 +15,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from radar.audit import STATUS_OK, RunLog
+from radar import repetidos
+from radar.audit import STATUS_OK, RunLog, execucoes_diarias
 from radar.config import Config
-from radar.normalize import TZ, corta_texto, pncp_url
-from radar.scoring import Scorer, edital_inativo
+from radar.normalize import TZ, corta_texto, numero_do_edital, pncp_url
+from radar.scoring import Scorer, edital_inativo, rotulo_nota
 from radar.store import Store
 
 VERSAO = 1
@@ -31,29 +33,12 @@ def iso_br(dt: datetime | None) -> str | None:
     return dt.replace(tzinfo=TZ).isoformat(timespec="seconds") if dt else None
 
 
-def rotulo_nota(nota: int) -> str:
-    """Nota 0-100 em linguagem de gente: o painel não mostra o número."""
-    if nota >= 80:
-        return "muito"
-    if nota >= 60:
-        return "combina"
-    return "parcial"
-
-
 def _termo_legivel(cfg: Config, termo: str) -> str:
     return cfg.score.rotulos.get(termo) or termo.replace("*", "")
 
 
-def _simulada(run: dict[str, Any]) -> bool:
-    # execuções antigas não tinham a coluna `simulado`: reconhece pelo texto do erro
-    return bool(run.get("simulado")) or "simulada" in (run.get("error_message") or "").lower()
-
-
 def _robo(runs: list[dict[str, Any]], now: datetime) -> dict[str, Any]:
-    validas = sorted(
-        (r for r in runs if r["modo"] == "daily" and not _simulada(r)),
-        key=lambda r: r["started_at"],
-    )
+    validas = execucoes_diarias(runs)
     ok = [r for r in validas if r["status"] in STATUS_OK and r["finished_at"]]
     recentes = [r for r in validas if r["started_at"] >= now - timedelta(days=30)]
     ultima = validas[-1] if validas else None
@@ -99,30 +84,47 @@ def build_painel(store: Store, scorer: Scorer, cfg: Config, now: datetime) -> di
         r["modalidade_id"]: (r["modalidade_nome"] or "").replace(" - ", " ") for r in rows
     }
 
-    editais: list[dict[str, Any]] = []
+    relevantes = []
     for r in sorted(ativos, key=lambda r: (r["data_encerramento_proposta"], r["id"])):
         res = scorer.score(r, now)
-        if not res.relevante:
-            continue
+        if res.relevante:
+            relevantes.append((r, res))
+
+    editais: list[dict[str, Any]] = []
+    ocultos = 0
+    # o edital publicado duas vezes (veja radar.repetidos) aparece uma vez, com o número e o link do outro
+    for grupo in repetidos.agrupar(relevantes, lambda par: par[0]):
+        (r, res), *outros = grupo
         valor = r["valor_estimado"]
-        editais.append(
-            {
-                "id": r["id"],
-                "objeto": corta_texto(r["objeto"], RESUMO_MAX),
-                "orgao": corta_texto(r["orgao_razao_social"], 90),
-                "uf": r["uf"],
-                "municipio": r["municipio"],
-                "modalidade": (r["modalidade_nome"] or "").replace(" - ", " "),
-                "valor": round(valor, 2) if valor else None,
-                "registro_de_precos": bool(r["srp"]),
-                "abertura": iso_br(r["data_abertura_proposta"]),
-                "prazo": iso_br(r["data_encerramento_proposta"]),
-                "nota": res.score,
-                "combina": rotulo_nota(res.score),
-                "termos": [_termo_legivel(cfg, t) for t in res.fortes + res.fracos],
-                "link": pncp_url(r),
-            }
-        )
+        edital = {
+            "id": r["id"],
+            "objeto": corta_texto(r["objeto"], RESUMO_MAX),
+            "orgao": corta_texto(r["orgao_razao_social"], 90),
+            "uf": r["uf"],
+            "municipio": r["municipio"],
+            "modalidade": (r["modalidade_nome"] or "").replace(" - ", " "),
+            "numero": numero_do_edital(r) or None,
+            "valor": round(valor, 2) if valor else None,
+            "registro_de_precos": bool(r["srp"]),
+            "abertura": iso_br(r["data_abertura_proposta"]),
+            "prazo": iso_br(r["data_encerramento_proposta"]),
+            "nota": res.score,
+            "combina": rotulo_nota(res.score),
+            "termos": [_termo_legivel(cfg, t) for t in res.fortes + res.fracos],
+            "link": pncp_url(r),
+        }
+        if outros:
+            edital["repetidos"] = [
+                {
+                    "id": o["id"],
+                    "numero": numero_do_edital(o) or None,
+                    "publicado": o["data_publicacao"].date().isoformat(),
+                    "link": pncp_url(o),
+                }
+                for o, _ in outros
+            ]
+            ocultos += len(outros)
+        editais.append(edital)
 
     return {
         "versao": VERSAO,
@@ -138,7 +140,7 @@ def build_painel(store: Store, scorer: Scorer, cfg: Config, now: datetime) -> di
             "valor_min": cfg.filtros.valor_min,
             "valor_max": cfg.filtros.valor_max,
         },
-        "totais": {"abertos": len(ativos), "combinam": len(editais)},
+        "totais": {"abertos": len(ativos), "combinam": len(editais), "repetidos": ocultos},
         "robo": _robo(RunLog(store).all(), now),
         "editais": editais,
     }

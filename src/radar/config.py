@@ -24,6 +24,13 @@ class Ingestao(_Base):
     # Dias de alterações lidos na consulta por atualização (prorrogações, suspensões). Menor que o
     # lookback de publicação porque a consulta devolve ~4x mais linhas (toda alteração conta).
     lookback_atualizacao_dias: int = Field(default=2, ge=1, le=30)
+    # Conferência semanal (modo `reconcile`): relê as propostas abertas até daqui a N dias e confere,
+    # um a um no PNCP, os editais que o robô guarda como abertos mas a listagem não traz mais
+    # (excluídos do PNCP, prazo prorrogado). `conferencias_max` limita as consultas por execução.
+    reconciliacao_dias: int = Field(default=14, ge=1, le=60)
+    conferencias_max: int = Field(default=150, ge=0, le=500)
+    # "Prazos chegando" confere no PNCP cada edital antes de listá-lo (no máximo N consultas por dia)
+    conferencias_alerta_max: int = Field(default=15, ge=0, le=50)
     tamanho_pagina: int = Field(default=50, ge=10, le=50)
     intervalo_minimo_s: float = Field(default=4.0, ge=1.0)
     backoff_429_s: list[float] = Field(default_factory=lambda: [30, 60, 120], min_length=1)
@@ -83,6 +90,24 @@ class Compra(_Base):
     nucleos_de_obra: list[str] = Field(default_factory=list)
 
 
+class ServicosIntelectuais(_Base):
+    """Regra firme: consultoria, fiscalização e projeto são serviço de escritório, não obra.
+
+    Uma construtora executa a obra; quem fiscaliza, gerencia ou projeta é outra empresa. O texto
+    recebe nota zero quando um destes termos vem antes de qualquer palavra de obra, a menos que
+    também peça execução (contratação integrada, "fornecimento e instalação"...).
+    """
+
+    termos: list[str] = Field(default_factory=list)  # ex.: "fiscaliza*", "elabora* d* projeto*"
+    # Se o texto traz um destes, é projeto + execução e a regra não se aplica
+    executa_se_texto_tem: list[str] = Field(default_factory=list)
+    # "fase de execução", "fiscalização da execução": quem acompanha não executa. Estas palavras antes de
+    # "execução" tiram essa "execução" da conta de `executa_se_texto_tem`.
+    apoio_antes_de_execucao: list[str] = Field(default_factory=list)
+    # Palavra de obra que aparece ANTES do termo: o texto é obra ("reforma ... com projeto executivo")
+    nucleos_de_obra: list[str] = Field(default_factory=list)
+
+
 class Score(_Base):
     termos_fortes: list[str] = Field(default_factory=list)
     termos_fracos: list[str] = Field(default_factory=list)
@@ -90,6 +115,7 @@ class Score(_Base):
     # Como cada termo aparece para a pessoa no painel ("construcao" -> "construção")
     rotulos: dict[str, str] = Field(default_factory=dict)
     compra: Compra = Field(default_factory=Compra)
+    servicos_intelectuais: ServicosIntelectuais = Field(default_factory=ServicosIntelectuais)
     peso_forte: int = 35
     teto_fortes: int = 70
     peso_fraco: int = 8
@@ -116,6 +142,16 @@ class Alerta(_Base):
     prazo_minimo_dias: int = Field(default=2, ge=0, le=30)
     max_vencendo: int = Field(default=5, ge=0, le=20)
     enviar_quando_vazio: bool = True
+    # Endereço do painel público: vira o link "Ver todos no painel" no alerta. Vazio = sem link.
+    painel_url: str | None = None
+
+    @field_validator("painel_url")
+    @classmethod
+    def _painel_url_valida(cls, v: str | None) -> str | None:
+        v = (v or "").strip()
+        if v and not v.startswith("https://"):
+            raise ValueError("painel_url deve começar com https://")
+        return v or None
 
     @model_validator(mode="after")
     def _janela_de_prazo(self) -> Alerta:

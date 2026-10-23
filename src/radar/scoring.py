@@ -11,12 +11,12 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from radar.config import Compra, Config
-from radar.normalize import fold
+from radar.config import Compra, Config, ServicosIntelectuais
+from radar.normalize import SITUACAO_EXCLUIDA, fold
 
-#: situacaoCompraId do PNCP: 2 revogada, 3 anulada, 4 suspensa
-SITUACOES_INATIVAS = {2, 3, 4}
-_NOMES_INATIVOS = ("revogad", "anulad", "suspens")
+#: situacaoCompraId do PNCP: 2 revogada, 3 anulada, 4 suspensa (e o nosso 99: excluída do PNCP)
+SITUACOES_INATIVAS = {2, 3, 4, SITUACAO_EXCLUIDA}
+_NOMES_INATIVOS = ("revogad", "anulad", "suspens", "exclu")
 
 #: "mão de obra" aparece em quase todo contrato de serviços (limpeza, vigilância...) e não
 #: indica obra de engenharia; sai do texto antes de comparar com os termos do perfil.
@@ -95,6 +95,60 @@ class RegraCompra:
         return not (obra and obra.start() < primeira)  # obra aparece antes: é obra que cita compra
 
 
+#: Consultoria, fiscalização e projeto também se dizem no começo do objeto.
+JANELA_INTELECTUAL = 300
+JANELA_EXECUCAO = 400
+
+
+class RegraServicoIntelectual:
+    """Decide se um texto (já sem acento, em minúsculas e sem "mão de obra") é serviço intelectual."""
+
+    def __init__(self, regra: ServicosIntelectuais) -> None:
+        self._termos = (
+            re.compile(r"\b(?:" + _alternativas(regra.termos) + r")\b") if regra.termos else None
+        )
+        self._executa = (
+            re.compile(r"\b(?:" + _alternativas(regra.executa_se_texto_tem) + r")\b")
+            if regra.executa_se_texto_tem
+            else None
+        )
+        self._obra = (
+            re.compile(r"\b(?:" + _alternativas(regra.nucleos_de_obra) + r")\b")
+            if regra.nucleos_de_obra
+            else None
+        )
+        # "fase de execução", "fiscalização da execução": palavra de apoio + até 2 artigos + "execu..."
+        self._apoio = (
+            re.compile(
+                r"\b(?:"
+                + _alternativas(regra.apoio_antes_de_execucao)
+                + r")\s+(?:(?:a|o|da|de|do|na|no|das|dos)\s+){0,2}execu\w+"
+            )
+            if regra.apoio_antes_de_execucao
+            else None
+        )
+
+    def eh_servico_intelectual(self, texto: str) -> bool:
+        if not self._termos:
+            return False
+        inicio = texto[:JANELA_INTELECTUAL]
+        achado = self._termos.search(inicio)
+        if not achado:
+            return False
+        if self._executa:
+            trecho = texto[:JANELA_EXECUCAO]
+            if self._apoio:
+                trecho = self._apoio.sub(
+                    " ", trecho
+                )  # "fase de execução" é acompanhar, não executar
+            if self._executa.search(trecho):
+                return (
+                    False  # pede projeto E execução: continua sendo trabalho para uma construtora
+                )
+        obra = self._obra.search(inicio) if self._obra else None
+        return not (obra and obra.start() < achado.start())
+
+
 @dataclass
 class ScoreResult:
     score: int
@@ -105,8 +159,17 @@ class ScoreResult:
     fracos: list[str] = field(default_factory=list)  # termos fracos que casaram
 
 
+def rotulo_nota(nota: int) -> str:
+    """Nota 0-100 em linguagem de gente: "muito", "combina" ou "parcial". O número não aparece."""
+    if nota >= 80:
+        return "muito"
+    if nota >= 60:
+        return "combina"
+    return "parcial"
+
+
 def edital_inativo(row: dict[str, Any]) -> bool:
-    """Revogado, anulado ou suspenso: não está mais disputando propostas."""
+    """Revogado, anulado, suspenso ou excluído do PNCP: não está mais disputando propostas."""
     if row.get("situacao_id") in SITUACOES_INATIVAS:
         return True
     nome = fold(row.get("situacao_nome"))
@@ -121,6 +184,7 @@ class Scorer:
         self._fracos = [(t, compile_term(t)) for t in s.termos_fracos]
         self._negativos = [(t, compile_term(t)) for t in s.termos_negativos]
         self._compra = RegraCompra(s.compra)
+        self._intelectual = RegraServicoIntelectual(s.servicos_intelectuais)
 
     def score(self, row: dict[str, Any], agora: datetime) -> ScoreResult:
         s = self.cfg.score
@@ -145,6 +209,15 @@ class Scorer:
                 ["compra"],
             )
         texto = _MAO_DE_OBRA.sub(" ", completo)
+        if self._intelectual.eh_servico_intelectual(texto):
+            return ScoreResult(
+                0,
+                False,
+                [
+                    "serviço de escritório: consultoria, fiscalização ou projeto, sem execução de obra"
+                ],
+                ["intelectual"],
+            )
         fortes = [t for t, p in self._fortes if p.search(texto)]
         fracos = [t for t, p in self._fracos if p.search(texto)]
         negativos = [t for t, p in self._negativos if p.search(texto)]

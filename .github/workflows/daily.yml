@@ -4,12 +4,15 @@ on:
   schedule:
     # 10:17 UTC = 07:17 em Brasília. Evita o minuto :00, quando o cron do GitHub mais atrasa.
     - cron: "17 10 * * *"
+    # Domingo 22:47 UTC = 19:47 em Brasília: conferência semanal, antes da rotina de segunda.
+    # Se mudar este horário, mude também o texto igual no passo "Escolher a rotina".
+    - cron: "47 22 * * 0"
   workflow_dispatch:
     inputs:
       modo:
-        description: "daily (rotina), backfill (janela de datas) ou bootstrap (carga inicial)"
+        description: "daily (rotina), reconcile (conferência semanal), backfill (janela de datas) ou bootstrap (carga inicial)"
         type: choice
-        options: [daily, backfill, bootstrap]
+        options: [daily, reconcile, backfill, bootstrap]
         default: daily
       desde:
         description: "backfill: data inicial (AAAA-MM-DD)"
@@ -41,7 +44,7 @@ env:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120 # a rotina diária leva ~15 min; a conferência de domingo, de 40 a 80
     steps:
       - name: Código (main)
         uses: actions/checkout@v4
@@ -64,11 +67,29 @@ jobs:
           pip install -r requirements.txt
           pip install -e . --no-deps
 
+      - name: Escolher a rotina
+        id: rotina
+        env:
+          MODO_PEDIDO: ${{ inputs.modo }}
+          AGENDAMENTO: ${{ github.event.schedule }}
+        run: |
+          # Quem disparou à mão escolhe. No agendamento, domingo à noite é a conferência semanal
+          # e qualquer outro horário é a rotina diária.
+          if [ -n "$MODO_PEDIDO" ]; then
+            modo="$MODO_PEDIDO"
+          elif [ "$AGENDAMENTO" = "47 22 * * 0" ]; then
+            modo=reconcile
+          else
+            modo=daily
+          fi
+          echo "modo=$modo" >> "$GITHUB_OUTPUT"
+          echo "Rotina desta execução: $modo"
+
       - name: Executar o pipeline
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          MODO: ${{ inputs.modo || 'daily' }}
+          MODO: ${{ steps.rotina.outputs.modo }}
           DESDE: ${{ inputs.desde }}
           ATE: ${{ inputs.ate }}
           DRY_RUN: ${{ inputs.dry_run }}
@@ -82,6 +103,8 @@ jobs:
             daily)
               if [ "$SIMULAR_FALHA" = "true" ]; then args+=(--simulate-failure); fi
               python -m radar run "${args[@]}" ;;
+            reconcile)
+              python -m radar reconcile "${args[@]}" ;;
             backfill)
               python -m radar backfill --desde "$DESDE" --ate "$ATE" "${args[@]}" ;;
             bootstrap)
@@ -106,7 +129,7 @@ jobs:
       - name: Avisar o vigia externo (Healthchecks.io)
         # Só quando tudo deu certo na rotina diária. Se este aviso parar de chegar, o próprio
         # Healthchecks alerta por fora do GitHub, inclusive se o agendador do GitHub falhar.
-        if: success() && inputs.dry_run != true && (inputs.modo || 'daily') == 'daily'
+        if: success() && inputs.dry_run != true && steps.rotina.outputs.modo == 'daily'
         env:
           HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
         run: |

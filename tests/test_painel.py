@@ -60,8 +60,9 @@ def test_painel_so_traz_relevantes_ativos_e_dentro_da_janela(tmp_path, cfg_peque
 
     assert [e["id"] for e in painel["editais"]] == [itens[0]["numeroControlePNCP"]]
     # "abertos" é o denominador honesto: ativos com prazo na janela (o entra e a compra)
-    assert painel["totais"] == {"abertos": 2, "combinam": 1}
+    assert painel["totais"] == {"abertos": 2, "combinam": 1, "repetidos": 0}
     assert painel["janela_dias"] == 30
+    assert "repetidos" not in painel["editais"][0]  # sem gêmeo, nem o campo aparece
 
 
 def test_campos_e_fuso_do_painel(tmp_path, cfg_pequena, agora):
@@ -85,6 +86,54 @@ def test_campos_e_fuso_do_painel(tmp_path, cfg_pequena, agora):
     assert em_3_dias["link"].startswith("https://pncp.gov.br/app/editais/")
     assert em_3_dias["combina"] in {"muito", "combina", "parcial"} and 0 < em_3_dias["nota"] <= 100
     assert em_20_dias["registro_de_precos"] is True and em_3_dias["registro_de_precos"] is False
+    assert em_3_dias["numero"] == "CCE28/2026CJ"  # o número do edital no órgão, como no Telegram
+
+
+def test_edital_publicado_duas_vezes_aparece_uma_vez_com_o_numero_e_o_link_do_outro(
+    tmp_path, cfg_pequena, agora
+):
+    """Achado em 22/10/2026: "34" e "34/2026REPUBLICADO" são o mesmo edital, e os dois estão ativos."""
+    base = load_sample_items()[0]
+    obra = "Execução de obras de reforma predial da escola municipal"
+    prazo = agora + timedelta(days=6)
+
+    def publicado(horas):
+        return (agora - timedelta(days=2, hours=-horas)).isoformat(timespec="seconds")
+
+    itens = [
+        edital(base, 1, obra, prazo, sequencialCompra=101, numeroCompra="34",
+               dataPublicacaoPncp=publicado(0)),
+        edital(base, 2, obra.upper() + ".", prazo, sequencialCompra=110,
+               numeroCompra="34/2026REPUBLICADO", dataPublicacaoPncp=publicado(3)),
+        edital(base, 3, "Execução de obras de reforma predial do ginásio de esportes", prazo,
+               sequencialCompra=120),  # outro texto: outro edital
+    ]  # fmt: skip
+    roda(tmp_path, cfg_pequena, itens, agora)
+    painel = le_painel(tmp_path)
+
+    unico, outro = painel["editais"]
+    # o publicado por último é o principal; o original vira "repetido", com número e link próprios
+    assert unico["id"] == itens[1]["numeroControlePNCP"] and unico["link"].endswith("/110")
+    assert unico["numero"] == "34/2026REPUBLICADO"
+    (gemeo,) = unico["repetidos"]
+    assert gemeo["id"] == itens[0]["numeroControlePNCP"] and gemeo["numero"] == "34/2026"
+    assert gemeo["link"].endswith("/101") and gemeo["publicado"] == publicado(0)[:10]
+    assert "repetidos" not in outro and outro["id"] == itens[2]["numeroControlePNCP"]
+    # os números contam o edital uma vez; o que ficou escondido aparece à parte
+    assert painel["totais"] == {"abertos": 3, "combinam": 2, "repetidos": 1}
+
+
+def test_repetido_sem_numero_que_preste_vai_sem_numero(tmp_path, cfg_pequena, agora):
+    base = load_sample_items()[0]
+    obra = "Execução de obras de reforma predial da escola municipal"
+    prazo = agora + timedelta(days=6)
+    itens = [
+        edital(base, 1, obra, prazo, sequencialCompra=101, numeroCompra="x" * 40),
+        edital(base, 2, obra, prazo, sequencialCompra=110, numeroCompra="35"),
+    ]
+    roda(tmp_path, cfg_pequena, itens, agora)
+    (unico,) = le_painel(tmp_path)["editais"]
+    assert unico["repetidos"][0]["numero"] is None  # a página diz "outro registro"
 
 
 def test_arquivo_tem_um_edital_por_linha_e_e_json_valido(tmp_path, cfg_pequena, agora):
@@ -145,7 +194,8 @@ def test_execucao_antiga_sem_a_coluna_simulado_tambem_fica_de_fora():
 
 def test_painel_sem_dados_nao_quebra(tmp_path, cfg):
     painel = build_painel(Store(tmp_path), Scorer(cfg), cfg, datetime(2026, 10, 21, 12, 0))
-    assert painel["editais"] == [] and painel["totais"] == {"abertos": 0, "combinam": 0}
+    assert painel["editais"] == []
+    assert painel["totais"] == {"abertos": 0, "combinam": 0, "repetidos": 0}
     assert painel["robo"]["ultima"] is None and painel["robo"]["taxa_sucesso_30d_pct"] is None
 
 

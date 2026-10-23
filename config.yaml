@@ -163,6 +163,60 @@ score:
       - "requalificacao"
       - "revitalizacao"
       - "empreitada"
+  # Consultoria, fiscalização, gerenciamento e projeto são serviço de escritório, não obra: nota zero.
+  # Medido em 22/10/2026: 2,6% dos relevantes (38 de 1.448), todos desse tipo. Para uma empresa que
+  # também faz projeto ou fiscalização, esvazie `termos`.
+  servicos_intelectuais:
+    termos:
+      - "consultoria"
+      - "consultiva"
+      - "assessoria"
+      - "fiscaliza*"
+      - "supervis*"
+      - "gerenciamento"
+      - "gerenciadora"
+      - "laudo*"
+      - "anteprojeto*"
+      - "elabora* d* projeto*" # elaboração de/do/dos projeto(s); "projeto executivo" sozinho é só referência
+      - "medicina do trabalho"
+      - "seguranca do trabalho"
+    # Se também pede execução, é projeto + obra (contratação integrada) e continua relevante
+    executa_se_texto_tem:
+      - "execucao"
+      - "executar"
+      - "integrada" # contratação integrada ou semi-integrada
+      - "fornecimento"
+      - "montagem"
+      - "e construcao"
+      - "e implantacao"
+      - "e instalacao"
+      - "e para a construcao"
+      - "e para a implantacao"
+    # ...mas "fase de execução" e "fiscalização da execução" são acompanhamento, não execução
+    apoio_antes_de_execucao:
+      - "fase"
+      - "durante"
+      - "acompanha*"
+      - "fiscaliza*"
+      - "supervis*"
+      - "apoi*"
+      - "gerenciamento"
+      - "controle"
+    # Palavra de obra ANTES do termo: o texto é obra ("reforma ... com fiscalização")
+    nucleos_de_obra:
+      - "obra*"
+      - "reforma*"
+      - "construcao"
+      - "pavimentacao"
+      - "ampliacao"
+      - "recuperacao"
+      - "demolicao"
+      - "restauro"
+      - "requalificacao"
+      - "revitalizacao"
+      - "empreitada"
+      - "implantacao"
+      - "manutencao"
   peso_forte: 35
   teto_fortes: 70
   peso_fraco: 8
@@ -189,6 +243,7 @@ alerta:
   prazo_minimo_dias: 2      # ...mas só os que ainda dão tempo de montar proposta (2 dias ou mais)
   max_vencendo: 5
   enviar_quando_vazio: true # manda uma linha mesmo sem novidades (prova que o robô rodou)
+  painel_url: "https://victor-ozores.github.io/Radar-PNCP/"  # link "Ver todos no painel" no alerta
 
 export:
   dias_historico: 90        # editais publicados nos últimos N dias vão para o editais.csv (dados abertos)

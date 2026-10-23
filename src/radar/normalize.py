@@ -274,6 +274,272 @@ def corta_texto(texto: str | None, limite: int) -> str:
     return corte.rstrip(" ,;:-") + "…"
 
 
+# --------------------------------------------------------------------------- texto para leitura
+# Estas regras existem também em site/src/lib/formatos.ts. Se mudar uma, mude a outra e os testes.
+
+VALOR_MINIMO_CONFIAVEL = 1_000  # abaixo disto o valor costuma ser preenchimento simbólico (R$ 0,04)
+
+
+def valor_confiavel(valor: float | None) -> float | None:
+    """O valor, se der para confiar nele; senão ``None`` ("valor não informado")."""
+    if valor is None or valor != valor or valor < VALOR_MINIMO_CONFIAVEL:  # != : NaN
+        return None
+    return valor
+
+
+_ETIQUETA_DO_SISTEMA = re.compile(r"^\s*\[[^\]]{1,60}\]\s*[-–:]?\s*")
+
+
+def limpa_objeto(objeto: str | None) -> str:
+    """Tira do começo a etiqueta do sistema que publicou ("[Portal de Compras Públicas] - ")."""
+    texto = (objeto or "").strip()
+    return _ETIQUETA_DO_SISTEMA.sub("", texto, count=1).strip() or texto
+
+
+_PALAVRAS_PEQUENAS = frozenset(
+    [
+        "a",
+        "as",
+        "o",
+        "os",
+        "e",
+        "em",
+        "de",
+        "da",
+        "das",
+        "do",
+        "dos",
+        "na",
+        "nas",
+        "no",
+        "nos",
+        "para",
+        "por",
+        "com",
+        "sem",
+        "ao",
+        "aos",
+        "ou",
+        "um",
+        "uma",
+        "pelo",
+        "pela",
+        "pelos",
+        "pelas",
+        "que",
+        "à",
+        "às",
+    ]
+)
+_SIGLAS = frozenset(
+    (  # noqa: SIM905
+        "ubs upa cras creas caps cei cmei emei emef cbuq bdi nbr abnt srp pncp cnpj cpf ltda epp ete "
+        "eta epi art rrt crea cau saae sabesp copasa sanepar cemig der dnit tjmg tjsp tjrj trf trt "
+        "ufmg ufpr usp unesp unicamp ifsp ifmg ifpr fiocruz sus ses sms pmf led pvc pead pcmso ltcat "
+        "embrapa sesc senai senac sebrae incra ibama utfpr ufrj uff ufv fnde pac avcb ee cep emeb "
+        "uenp fnhis cefet cemei usf icb cer cpi sam cac utm saa mdic mesp deadm diap dehis decs "
+        "deart fad sesa semop repi iftm dga secod pirf tre copom saaeb feq baep cope femib cejusc "
+        "fema cro ufjf sesmg sema seduc sesp"
+    ).split()
+)
+# Nomes de órgãos vêm sem acento na origem; só estas palavras, que se repetem muito, voltam acentuadas.
+_ACENTOS = {
+    "municipio": "município",
+    "municipios": "municípios",
+    "justica": "justiça",
+    "saude": "saúde",
+    "educacao": "educação",
+    "agropecuaria": "agropecuária",
+    "publico": "público",
+    "publica": "pública",
+    "publicos": "públicos",
+    "publicas": "públicas",
+    "fundacao": "fundação",
+    "camara": "câmara",
+    "consorcio": "consórcio",
+    "consorcios": "consórcios",
+    "ministerio": "ministério",
+    "policia": "polícia",
+    "seguranca": "segurança",
+    "administracao": "administração",
+    "assistencia": "assistência",
+    "agencia": "agência",
+    "ciencia": "ciência",
+    "ciencias": "ciências",
+    "regiao": "região",
+    "orgao": "órgão",
+    "agua": "água",
+    "aguas": "águas",
+    "habitacao": "habitação",
+    "transito": "trânsito",
+    "superintendencia": "superintendência",
+    "servico": "serviço",
+    "servicos": "serviços",
+    "estancia": "estância",
+    "turistica": "turística",
+    "parana": "paraná",
+    "sao": "são",
+    "jose": "josé",
+    "joao": "joão",
+    "conceicao": "conceição",
+    "goias": "goiás",
+}
+_PRONOMES_COLADOS = frozenset(
+    ["se", "lhe", "lhes", "me", "te", "nos", "vos", "lo", "la", "los", "las"]
+)
+_SEM_VOGAL = re.compile(r"^[^aeiouáéíóúâêôãõ]+$", re.IGNORECASE)
+_ROMANO = re.compile(r"^[IVX]{1,4}$")
+_PALAVRA = re.compile(r"[^\W_]+")
+# "DR.", "AV." e parecidos: abreviação com inicial maiúscula, não sigla.
+_ABREVIACOES = frozenset(["dr", "dra", "sr", "sra", "av", "prof", "profa", "eng"])
+
+
+def _tem_letra(palavra: str) -> bool:
+    return any(c.isalpha() for c in palavra)
+
+
+def _eh_maiuscula(palavra: str) -> bool:
+    """Tem letra e nenhuma minúscula."""
+    return _tem_letra(palavra) and palavra == palavra.upper()
+
+
+def _trechos_gritando(palavras: list[re.Match[str]]) -> list[tuple[int, int]]:
+    """Trechos de palavras seguidas só em maiúsculas (número no meio não interrompe): (primeira, última).
+
+    Só conta como "gritando" quando é longo: 3 palavras e 12 letras. Sigla solta ("UBS") não é.
+    """
+    trechos: list[tuple[int, int]] = []
+    i = 0
+    while i < len(palavras):
+        if not _eh_maiuscula(palavras[i].group(0)):
+            i += 1
+            continue
+        j, ultima, maiusculas, letras = i, i, 0, 0
+        while j < len(palavras) and (
+            _eh_maiuscula(palavras[j].group(0)) or not _tem_letra(palavras[j].group(0))
+        ):
+            if _eh_maiuscula(palavras[j].group(0)):
+                maiusculas += 1
+                letras += sum(c.isalpha() for c in palavras[j].group(0))
+                ultima = j
+            j += 1
+        if maiusculas >= 3 and letras >= 12:
+            trechos.append((i, ultima))
+        i = j
+    return trechos
+
+
+def esta_gritando(texto: str) -> bool:
+    """Tem um trecho longo em MAIÚSCULAS (como muitos objetos e órgãos do PNCP)?"""
+    return bool(_trechos_gritando(list(_PALAVRA.finditer(texto))))
+
+
+def _suaviza_palavra(
+    m: re.Match[str], primeira_do_trecho: bool, texto: str, restaura_acentos: bool
+) -> str:
+    palavra = m.group(0)
+    if any(c.isdigit() for c in palavra):
+        return palavra
+    baixa, base = palavra.lower(), fold(palavra)
+    if len(palavra) == 1:
+        return (
+            baixa if baixa in {"a", "e", "o", "à"} and not primeira_do_trecho else palavra.upper()
+        )
+    if m.start() > 0 and texto[m.start() - 1] == "-" and baixa in _PRONOMES_COLADOS:
+        return baixa  # "refere-se", "dê-lhe"
+    sigla = (
+        base in _SIGLAS
+        or _ROMANO.match(palavra)
+        or (len(palavra) <= 5 and _SEM_VOGAL.match(palavra) and base not in _ABREVIACOES)
+    )
+    if sigla:
+        return palavra.upper()
+    if not primeira_do_trecho and baixa in _PALAVRAS_PEQUENAS:
+        return baixa
+    final = _ACENTOS.get(base, baixa) if restaura_acentos else baixa
+    return final[:1].upper() + final[1:]
+
+
+def suaviza_caixa(texto: str, restaura_acentos: bool = False) -> str:
+    """O trecho em CAIXA ALTA vira "Caixa Alta Normal" (preposições em minúsculas, siglas mantidas).
+
+    Só para ler na tela e no Telegram: o texto guardado não muda, o resto do texto também não, e
+    texto que já está em caixa normal passa sem alteração.
+    """
+    palavras = list(_PALAVRA.finditer(texto))
+    trechos = _trechos_gritando(palavras)
+    if not trechos:
+        return texto
+    trocas = {
+        k: _suaviza_palavra(palavras[k], k == de, texto, restaura_acentos)
+        for de, ate in trechos
+        for k in range(de, ate + 1)
+    }
+    return _aplica_trocas(texto, palavras, trocas)
+
+
+def _aplica_trocas(texto: str, palavras: list[re.Match[str]], trocas: dict[int, str]) -> str:
+    """Troca só as palavras indicadas; o que está entre elas (espaços, pontuação) fica como estava."""
+    saida: list[str] = []
+    cursor = 0
+    for k, m in enumerate(palavras):
+        if k in trocas:
+            saida += [texto[cursor : m.start()], trocas[k]]
+            cursor = m.end()
+    return "".join(saida) + texto[cursor:]
+
+
+def acerta_cidade(orgao: str, municipio: str | None) -> str:
+    """Onde o nome do órgão cita a cidade, usa a grafia da cidade como o próprio edital a traz.
+
+    O nome do órgão chega sem acento ("Município de Ibirite") e a cidade do mesmo edital vem certa
+    ("Ibirité"). Só entram palavras que diferem no acento ou na caixa, então o sentido não muda.
+    """
+    cidade = [m.group(0) for m in _PALAVRA.finditer(municipio or "")]
+    palavras = list(_PALAVRA.finditer(orgao))
+    alvo = [fold(c) for c in cidade]
+    trocas: dict[int, str] = {}
+    i = 0
+    while cidade and i + len(cidade) <= len(palavras):
+        if [fold(p.group(0)) for p in palavras[i : i + len(cidade)]] == alvo:
+            trocas.update({i + k: c for k, c in enumerate(cidade)})
+            i += len(cidade)
+        else:
+            i += 1
+    return _aplica_trocas(orgao, palavras, trocas) if trocas else orgao
+
+
+def nome_do_orgao(orgao: str | None, municipio: str | None) -> str:
+    """O órgão como se lê na tela e no Telegram: caixa normal, acentos das palavras comuns e da cidade."""
+    return acerta_cidade(suaviza_caixa(orgao or "", restaura_acentos=True), municipio)
+
+
+#: situacaoCompraId de um edital que o PNCP **excluiu** (HTTP 410 na consulta individual). Não vem da
+#: API: é nosso, para tirar o edital das listas sem apagar a linha.
+SITUACAO_EXCLUIDA = 99
+SITUACAO_EXCLUIDA_NOME = "Excluída do PNCP"
+
+_ID_PNCP = re.compile(r"^(\d{14})-\d+-(\d+)/(\d{4})$")
+
+
+def partes_do_id(id_: str | None) -> tuple[str, int, int] | None:
+    """``numeroControlePNCP`` -> (cnpj do órgão, ano, sequencial), como a consulta individual pede."""
+    m = _ID_PNCP.match(id_ or "")
+    return (m.group(1), int(m.group(3)), int(m.group(2))) if m else None
+
+
+def numero_do_edital(row: dict[str, Any]) -> str:
+    """Ex.: "12/2026". Alguns órgãos preenchem o campo com lixo ("12 | Processo 1161"): fica o começo.
+
+    Sem número que preste, devolve texto vazio (quem usa não inventa um).
+    """
+    numero = re.split(r"[|;]", str(row.get("numero_compra") or ""))[0].strip()
+    if not numero or len(numero) > 20:
+        return ""
+    ano = row.get("ano_compra")
+    return numero + (f"/{ano}" if ano and "/" not in numero else "")
+
+
 def pncp_url(row: dict[str, Any]) -> str | None:
     """Página pública do edital no PNCP (sempre existe, ao contrário do link de origem)."""
     cnpj, ano, seq = row.get("orgao_cnpj"), row.get("ano_compra"), row.get("sequencial_compra")

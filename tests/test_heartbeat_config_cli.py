@@ -6,9 +6,12 @@ from datetime import datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
+from helpers import FakeClient
+from radar.audit import RunLog
 from radar.cli import JsonFormatter, build_parser, load_dotenv, main
 from radar.config import Config, load_config
 from radar.heartbeat import check_heartbeat
+from radar.store import Store
 
 AGORA = datetime(2026, 10, 19, 10, 0, 0)
 
@@ -96,6 +99,26 @@ def test_cli_check_config_e_parser(capsys):
     assert "config.yaml válido" in capsys.readouterr().out
     args = build_parser().parse_args(["backfill", "--desde", "2026-09-01", "--ate", "2026-09-07"])
     assert args.desde.isoformat() == "2026-09-01" and args.no_alerts
+
+
+def test_cli_reconcile_le_a_janela_pedida_e_nunca_manda_alerta(tmp_path, monkeypatch):
+    padrao = build_parser().parse_args(["reconcile"])
+    assert padrao.dias is None and padrao.no_alerts  # o prazo vem do config; não alerta
+    assert build_parser().parse_args(["reconcile", "--dias", "7"]).dias == 7
+
+    monkeypatch.setattr(
+        "radar.cli.load_dotenv", lambda *a, **k: None
+    )  # não lê o .env de quem testa
+    monkeypatch.setattr("radar.cli.build_client", lambda cfg: FakeClient())
+    assert main(["reconcile", "--dias", "7", "--data-dir", str(tmp_path / "dados")]) == 0
+
+    (rodada,) = RunLog(Store(tmp_path / "dados")).all()
+    assert (rodada["modo"], rodada["status"], rodada["alert_sent"]) == (
+        "reconcile",
+        "success",
+        False,
+    )
+    assert (rodada["window_end"] - rodada["window_start"]).days == 7
 
 
 def test_notify_failure_sem_telegram_configurado(tmp_path, monkeypatch, capsys):

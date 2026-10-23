@@ -191,3 +191,34 @@ def test_limite_de_paginas_protege_contra_loop():
     )
     with pytest.raises(PncpError, match="Limite de 3 páginas"):
         list(client.iter_publicacao(date(2026, 10, 16), date(2026, 10, 16), 6, "SP"))
+
+
+def test_consulta_individual_devolve_o_edital():
+    vistos: list[str] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        vistos.append(req.url.path)
+        return httpx.Response(200, json={"numeroControlePNCP": "12345678000190-1-000055/2026"})
+
+    client, _ = make_client(handler)
+    edital = client.get_compra("12345678000190", 2026, 55)
+    assert edital == {"numeroControlePNCP": "12345678000190-1-000055/2026"}
+    assert vistos[0].endswith("/orgaos/12345678000190/compras/2026/55")
+
+
+@pytest.mark.parametrize("status", [404, 410])
+def test_edital_excluido_ou_inexistente_volta_como_none(status):
+    """Medido em 22/10/2026: excluído do PNCP = 410 'A contratação informada foi excluída'."""
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(status, json={"message": "A contratação informada foi excluída."})
+
+    client, _ = make_client(handler)
+    assert client.get_compra("12345678000190", 2026, 100) is None
+
+
+def test_outros_erros_4xx_da_consulta_individual_continuam_sendo_erro():
+    client, _ = make_client(lambda req: httpx.Response(400, text="requisição inválida"))
+    with pytest.raises(PncpClientError) as erro:
+        client.get_compra("12345678000190", 2026, 1)
+    assert erro.value.status == 400

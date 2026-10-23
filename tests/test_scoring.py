@@ -203,3 +203,62 @@ def test_mao_de_obra_nao_conta_como_obra(scorer):
     # obra de verdade continua pontuando, mesmo junto de "mão de obra"
     real = "Execução de obra de ampliação, incluindo mão de obra e materiais"
     assert scorer.score(linha(objeto=real), AGORA).relevante
+
+
+@pytest.mark.parametrize(
+    "objeto",
+    [
+        "Contratação de serviço técnico para assistência e subsídio à fiscalização dos contratos das obras",
+        "GERENCIAMENTO DE ENGENHARIA para apoiar a gestão do contrato de obras de drenagem",
+        "Prestação de serviços de consultoria para análise de projetos de engenharia e supervisão de obra",
+        "Contratação de empresa para elaboração de projetos executivos de arquitetura para construção de escola",
+        "Contratação para elaboração do projeto básico e executivo da ponte, com ampliação do trecho",
+        "Serviços técnicos de engenharia consultiva para reforma e ampliação de prédios públicos",
+        "Registro de preços para serviços de engenharia de segurança do trabalho e laudos técnicos",
+    ],
+)
+def test_servico_de_escritorio_nao_e_obra(scorer, objeto):
+    """Consultoria, fiscalização e projeto: uma construtora não disputa (achado em 22/10/2026)."""
+    r = scorer.score(linha(objeto=objeto), AGORA)
+    assert r.score == 0 and not r.relevante and r.flags == ["intelectual"]
+    assert "serviço de escritório" in r.motivos[0]
+
+
+@pytest.mark.parametrize(
+    "objeto",
+    [
+        # projeto + execução continua sendo trabalho para construtora
+        "Contratação integrada para elaboração dos projetos básico e executivo e execução das obras",
+        "Contratação semi-integrada para elaboração de projetos e para o fornecimento e instalação de alambrado e reforma das arquibancadas",
+        "Elaboração de projeto executivo e construção de contenção em cortina atirantada",
+        "Elaboração dos projetos básico e executivo, o fornecimento, montagem e instalação de uma ETA e obras civis de construção",
+        # a obra vem primeiro; o termo é só detalhe ou nome do local
+        "Reforma da escola municipal com elaboração de projeto executivo e fiscalização ambiental",
+        "Contratação de empresa para execução das obras de reforma da Área de Gerenciamento de Resíduos",
+        "Execução de obra de contenção de encostas conforme Termo de Referência, Projeto Executivo e Planilha",
+        "Manutenção predial preventiva e corretiva, com supervisão técnica no local",
+    ],
+)
+def test_projeto_com_execucao_e_obra_que_cita_o_termo_continuam_valendo(scorer, objeto):
+    assert scorer.score(linha(objeto=objeto), AGORA).relevante, objeto
+
+
+def test_regra_de_servico_de_escritorio_e_configuravel(cfg):
+    cfg = cfg.model_copy(deep=True)
+    objeto = "Contratação de empresa para elaboração de projetos executivos de reforma de escola"
+    assert not Scorer(cfg).score(linha(objeto=objeto), AGORA).relevante
+    cfg.score.servicos_intelectuais.termos = []  # empresa que também faz projeto: regra desligada
+    assert Scorer(cfg).score(linha(objeto=objeto), AGORA).relevante
+
+
+@pytest.mark.parametrize(
+    "objeto",
+    [
+        # "execução" depois de palavra de apoio é acompanhar, não executar
+        "Serviços técnicos de engenharia consultiva para projetos de reforma, com apoio durante a fase de execução da obra",
+        "Contratação de empresa para fiscalização da execução das obras de pavimentação do município",
+        "Gerenciamento e acompanhamento da execução da obra de ampliação do hospital",
+    ],
+)
+def test_acompanhar_a_execucao_nao_e_executar(scorer, objeto):
+    assert not scorer.score(linha(objeto=objeto), AGORA).relevante, objeto

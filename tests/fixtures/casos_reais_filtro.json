@@ -560,6 +560,146 @@
    "modalidade_id": 4,
    "modalidade_nome": "Concorrência - Eletrônica",
    "valor_estimado": 227157.33
+  },
+  {
+   "grupo": "servico_intelectual",
+   "esperado_relevante": false,
+   "motivo": "fiscalização de obras (consultoria)",
+   "objeto": "Contratação de serviço técnico especializado para assistência e subsídio à fiscalização dos contratos das obras: construção do novo Fórum de Itajubá e do novo Fórum de Poços de Caldas.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 1660846.3
+  },
+  {
+   "grupo": "servico_intelectual",
+   "esperado_relevante": false,
+   "motivo": "gerenciamento de contrato de obras",
+   "objeto": "GERENCIAMENTO DE ENGENHARIA, PARA APOIAR A FUNDACAO RIO-AGUAS, NA GESTAO DO CONTRATO DE OBRAS DE CONTROLE DE INUNDACOES E REQUALIFICACAO AMBIENTAL E URBANISTICA DO JARDIM MARAVILHA - GUARATIBA - R.A. XXVI - A.P. 5.4.",
+   "uf": "RJ",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 6420614.76
+  },
+  {
+   "grupo": "servico_intelectual",
+   "esperado_relevante": false,
+   "motivo": "consultoria em projetos e supervisão",
+   "objeto": "[Portal de Compras Públicas] - PRESTAÇÃO DE SERVIÇOS DE CONSULTORIA PARA ANÁLISE E ADEQUAÇÃO DE PROJETOS DE ENGENHARIA, GERENCIAMENTO E SUPERVISÃO DO REMANESCENTE DE OBRA, SUPORTE ADMINISTRATIVO, TÉCNICO E JURÍDICO PARA A “IMPLANTAÇÃO DA MACRODRENAGEM E MELHORIA DO TRANSPORTE PÚBLICO COLETIVO DO COMPLEXO DA AVENIDA MARACANÃ” NO TRECHO COMPREENDIDO ENTRE A RUA ALBERT SCHWAITZER E A AVENIDA DULCE GERALDA DINIZ, NO MUNCÍPIO DE CONTAGEM/MG E DAS OBRAS COMPLEMENTARES A SEREM LICITADAS, DESCRITAS NO ITEM 2 DO TERMO DE REFERÊNCIA).",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 5832326.12
+  },
+  {
+   "grupo": "servico_intelectual",
+   "esperado_relevante": false,
+   "motivo": "engenharia consultiva",
+   "objeto": "Contratação de empresa especializada para prestação de serviços técnicos de engenharia consultiva, de natureza predominantemente intelectual, visando à elaboração de projetos básicos e executivos e demais peças técnicas necessárias à futura contratação da obra de reforma parcial do imóvel do Fórum Trabalhista da Capital, incluindo, ainda, a prestação de apoio técnico durante a fase de execução da futura obra, nos termos do edital e seus anexos.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 1289252.91
+  },
+  {
+   "grupo": "servico_intelectual",
+   "esperado_relevante": false,
+   "motivo": "só elaboração de anteprojetos e projetos",
+   "objeto": "CONTRATAÇÃO DE EMPRESA ESPECIALIZADA PARA A ELABORAÇÃO DE ANTEPROJETOS, PROJETOS BÁSICOS E EXECUTIVOS DE ARQUITETURA E ENGENHARIA, DESTINADOS À REGULARIZAÇÃO, REFORMA E AMPLIAÇÃO DE EDIFICAÇÕES VINCULADAS À SECRETARIA DE ESTADO DA SAÚDE DO PARANÁ (SESA). A CONTRATAÇÃO ABRANGERÁ EMPREENDIMENTOS PERTENCENTES À HEMORREDE ESTADUAL, UNIDADES DE COLETA E TRANSFUSÃO (UCT), FARMÁCIAS ESPECIAIS E CENTRAL DE ABASTECIMENTO FARMACÊUTICO (CAF), LOCALIZADOS NAS MACRORREGIÕES LESTE, OESTE E NOROESTE DO ESTADO",
+   "uf": "PR",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 2634364.47
+  },
+  {
+   "grupo": "servico_intelectual",
+   "esperado_relevante": false,
+   "motivo": "só elaboração de projetos executivos",
+   "objeto": "Contratação de empresa especializada para elaboração de projetos executivos de arquitetura e engenharia para construção de Escola Municipal de Ensino Fundamental I.",
+   "uf": "SP",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 136542.18
+  },
+  {
+   "grupo": "servico_intelectual",
+   "esperado_relevante": false,
+   "motivo": "segurança do trabalho",
+   "objeto": "REGISTRO DE PREÇOS PARA FUTURA E EVENTUAL CONTRATAÇÃO DE EMPRESA ESPECIALIZADA PARA PRESTAÇÃO DE SERVIÇOS TÉCNICOS DE ENGENHARIA DE SEGURANÇA DO TRABALHO E SAÚDE OCUPACIONAL, INCLUINDO ELABORAÇÃO DE LAUDOS LTCAT E LTIP, PROGRAMAS, AVALIAÇÕES, TREINAMENTOS E DEMAIS SERVIÇOS.",
+   "uf": "MG",
+   "modalidade_id": 6,
+   "modalidade_nome": "Pregão - Eletrônico",
+   "valor_estimado": 597160.06
+  },
+  {
+   "grupo": "servico_intelectual",
+   "esperado_relevante": false,
+   "motivo": "apoio à supervisão de obras",
+   "objeto": "Serviços de Apoio a Supervisão de Obras Rodoviárias da Rodovia MG-280, no trecho Dores do Turvo - Entr. MG-132 (Alto do Rio Doce).",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 5168912.61
+  },
+  {
+   "grupo": "servico_intelectual",
+   "esperado_relevante": false,
+   "motivo": "supervisão ambiental e apoio à fiscalização",
+   "objeto": "Serviços de supervisão ambiental e apoio técnico à fiscalização da obra de contenção das margens do Córrego Toucinheiros - Trecho A",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 2573457.86
+  },
+  {
+   "grupo": "projeto_e_obra",
+   "esperado_relevante": true,
+   "motivo": "contratação integrada (projeto + construção)",
+   "objeto": "Contratação integrada de empresa especializada em engenharia para a elaboração, o desenvolvimento e a compatibilização dos projetos básico e executivo e para a construção de 25 (vinte e cinco) unidades habitacionais de interesse social, térreas, unifamiliares e isoladas, incluindo o fornecimento de materiais, equipamentos, mão de obra e demais serviços necessários à entrega das moradias concluídas, funcionais e aptas à ocupação, em conformidade com o anteprojeto e os demais documentos técnicos da contratação.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 3586611.12
+  },
+  {
+   "grupo": "projeto_e_obra",
+   "esperado_relevante": true,
+   "motivo": "semi-integrada (projeto + fornecimento e instalação)",
+   "objeto": "Contratação semi-integrada de empresa especializada para elaboração dos projetos complementares executivos de engenharia e para o fornecimento e instalação de alambrado no Estádio Alberto Woods Soares – Arena Telê Santana conforme especificações descritas no edital, projeto e planilhas.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 361767.38
+  },
+  {
+   "grupo": "projeto_e_obra",
+   "esperado_relevante": true,
+   "motivo": "projeto executivo e construção de contenção",
+   "objeto": "[LICITANET] - CONTRATAÇÃO DE EMPRESA ESPECIALIZADA PARA ELABORAÇÃO DE PROJETO EXECUTIVO E CONSTRUÇÃO DE CONTENÇÃO EM CORTINA ATIRANTADA NA RUA BRASILIANA, MORRO DO SOSSEGO, PAPUCAIA, CACHOEIRAS DE MACACU/RJ.",
+   "uf": "RJ",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 460740.71
+  },
+  {
+   "grupo": "projeto_e_obra",
+   "esperado_relevante": true,
+   "motivo": "projeto, fornecimento, montagem e instalação de ETA",
+   "objeto": "CONTRATAÇÃO DE EMPRESA DE ENGENHARIA PARA A ELABORAÇÃO DOS PROJETOS BÁSICO E EXECUTIVO, O FORNECIMENTO, FABRICAÇÃO, TRANSPORTE, MONTAGEM, INSTALAÇÃO, TESTES, COMISSIONAMENTO E OPERAÇÃO ASSISTIDA DE UMA ESTAÇÃO DE TRATAMENTO DE ÁGUA (ETA) ABERTA, MODULAR, EM AÇO INOXIDÁVEL, COM VAZÃO MÉDIA DE SAÍDA DE 450 LITROS POR SEGUNDO, A SER IMPLANTADA NUMA ÁREA DE TERRA COM 11.888,73 M², SITUADA NA AVENIDA MINISTRO SALGADO FILHO, S/Nº, BAIRRO AERO CLUBE, MUNICÍPIO DE VOLTA REDONDA/RJ, DEVENDO TODOS OS PROJETOS SEREM DESENVOLVIDOS PARA A CAPACIDADE FINAL DE 900 LITROS POR SEGUNDO, PERMITINDO FUTURA AMPLIAÇÃO SEM NECESSIDADE DE ALTERAÇÕES ESTRUTURAIS SIGNIFICATIVAS",
+   "uf": "RJ",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 68770255.7
+  },
+  {
+   "grupo": "obra_cita_gerenciamento",
+   "esperado_relevante": true,
+   "motivo": "obra de reforma cujo nome tem 'Gerenciamento de Resíduos'",
+   "objeto": "Contratação de empresa especializada em engenharia para execução das obras de \"Reforma da Área de Gerenciamento de Resíduos de Campos Experimentais - GERECAMP da Embrapa Milho e Sorgo\", conforme especificações e demais elementos técnicos constantes deste Termo de Referência.",
+   "uf": "MG",
+   "modalidade_id": 4,
+   "modalidade_nome": "Concorrência - Eletrônica",
+   "valor_estimado": 163768.62
   }
  ]
 }

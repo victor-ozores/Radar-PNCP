@@ -6,23 +6,25 @@ import logging
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 
+from radar import repetidos
 from radar.alerts.render import Item, Resumo, build_digest
 from radar.alerts.telegram import TelegramNotifier
 from radar.audit import RunLog, RunRecord, scrub_secrets, write_status_files
+from radar.conferencia import ATUALIZADO, EXCLUIDO, INCERTO, conferir_no_pncp
 from radar.config import Alerta, Config
 from radar.export import export_all
 from radar.normalize import TZ, InvalidRecord, normalize_item
 from radar.pncp_client import PncpClient, PncpError
-from radar.scoring import Scorer
+from radar.scoring import Scorer, edital_inativo
 from radar.store import Store, UpsertResult
 
 log = logging.getLogger("radar.pipeline")
 
-MODOS = ("daily", "backfill", "bootstrap")
+MODOS = ("daily", "backfill", "bootstrap", "reconcile")
 DIAS_POR_BLOCO = 7
 
 
@@ -40,6 +42,7 @@ class RunOptions:
     desde: date | None = None
     ate: date | None = None
     bootstrap_dias: int = 30
+    reconciliar_dias: int | None = None  # None: usa `ingestao.reconciliacao_dias` do config
     simulate_failure: bool = False  # força uma falha para testar o alerta de erro
 
 
@@ -86,8 +89,11 @@ def _blocos(desde: date, ate: date, dias: int = DIAS_POR_BLOCO) -> list[tuple[da
 def plan_series(cfg: Config, opts: RunOptions, hoje: date) -> tuple[list[Serie], date, date]:
     """Lista as buscas da execução e devolve também a janela (início, fim) para auditoria."""
     ing = cfg.ingestao
-    if opts.modo == "bootstrap":
-        fim = hoje + timedelta(days=opts.bootstrap_dias)
+    if opts.modo in ("bootstrap", "reconcile"):
+        dias = opts.bootstrap_dias
+        if opts.modo == "reconcile":
+            dias = opts.reconciliar_dias or ing.reconciliacao_dias
+        fim = hoje + timedelta(days=dias)
         series = [Serie(m, u, None, fim) for m in ing.modalidades for u in ing.ufs]
         return series, hoje, fim
     if opts.modo == "backfill":
@@ -167,9 +173,11 @@ def run_pipeline(
             raise PipelineError(f"todas as {rec.series_total} buscas falharam")
         rec.status = "partial" if rec.series_failed else "success"
 
+        if opts.modo == "reconcile" and not opts.dry_run:
+            _reconciliar(cfg, client, store, ingerido, rec, now)
         if opts.modo == "daily":
             outcome.mensagens = _alertar(
-                cfg, opts, store, scorer, ingerido, rec, now, notifier, outcome
+                cfg, opts, client, store, scorer, ingerido, rec, now, notifier, outcome
             )
     except Exception as exc:  # registra a falha antes de propagar
         erro = exc
@@ -210,7 +218,7 @@ class Ingerido:
 
 
 def _paginas(client: PncpClient, opts: RunOptions, s: Serie):
-    if opts.modo == "bootstrap":
+    if opts.modo in ("bootstrap", "reconcile"):
         return client.iter_proposta(s.fim, s.modalidade, s.uf)
     if s.feed == "atualizacao":
         return client.iter_atualizacao(s.inicio, s.fim, s.modalidade, s.uf)  # type: ignore[arg-type]
@@ -312,11 +320,145 @@ def _copia_stats(client: PncpClient, rec: RunRecord) -> None:
     rec.http_429, rec.http_5xx = st.http_429, st.http_5xx
 
 
+# ------------------------------------------------------------------------- conferência no PNCP
+
+#: Depois de tantas respostas incertas seguidas (PNCP lento ou bloqueando), para de conferir:
+#: cada consulta pode gastar minutos de espera, e o dia não pode ficar preso nisso.
+INCERTOS_SEGUIDOS_PARA_PARAR = 2
+
+
+def _reconciliar(
+    cfg: Config,
+    client: PncpClient,
+    store: Store,
+    ingerido: Ingerido,
+    rec: RunRecord,
+    now: datetime,
+) -> None:
+    """Confere no PNCP os editais que o robô guarda como abertos mas a listagem não trouxe.
+
+    A listagem acabou de ser relida e gravada (corrigindo prazo, valor e situação do que veio). O que
+    sobra, guardado como aberto e ausente dela, é excluído do PNCP ou teve o prazo levado para além
+    da janela: só a consulta individual diz qual dos dois.
+    """
+    ing = cfg.ingestao
+    limite = datetime.combine(rec.window_end, time.max).replace(microsecond=0)
+    falharam = {
+        (int(m), uf) for m, uf in (f["serie"].split("@")[0].split("/") for f in rec.series_failed)
+    }  # série que falhou não prova ausência
+    guardados = store.current_state(
+        "WHERE data_encerramento_proposta >= ? AND data_encerramento_proposta <= ?", [now, limite]
+    )
+    suspeitos = sorted(
+        (
+            r
+            for r in guardados
+            if not edital_inativo(r)
+            and r["modalidade_id"] in ing.modalidades
+            and (r["uf"] or "").upper() in ing.ufs
+            and (r["modalidade_id"], (r["uf"] or "").upper()) not in falharam
+            and r["id"] not in ingerido.linhas
+        ),
+        key=lambda r: (r["data_encerramento_proposta"], r["id"]),  # o que vence antes primeiro
+    )
+    contagem: Counter[str] = Counter()
+    incertos_seguidos = 0
+    conferidos = 0
+    for r in suspeitos[: ing.conferencias_max]:
+        c = conferir_no_pncp(client, store, r, now)
+        conferidos += 1
+        contagem[c.resultado] += 1
+        rec.rows_updated += len(c.gravado.updated_ids)
+        rec.prazos_alterados += c.gravado.prazo_alterado
+        rec.situacoes_alteradas += c.gravado.situacao_alterada
+        incertos_seguidos = incertos_seguidos + 1 if c.resultado == INCERTO else 0
+        if incertos_seguidos >= INCERTOS_SEGUIDOS_PARA_PARAR:
+            break
+    rec.quality_warnings.update({f"conferido_{k}": n for k, n in contagem.items()})
+    if len(suspeitos) > conferidos:
+        rec.quality_warnings["conferencia_pendente"] = len(suspeitos) - conferidos
+    log.info(
+        "conferência no PNCP concluída",
+        extra={"ctx": {"suspeitos": len(suspeitos), "conferidos": conferidos, **contagem}},
+    )
+
+
+def _conferir_vencendo(
+    grupos: list[list[Item]],
+    client: PncpClient,
+    store: Store,
+    scorer: Scorer,
+    cfg: Config,
+    ja_no_resumo: set[str],
+    now: datetime,
+) -> tuple[list[Item], int]:
+    """Confere no PNCP os primeiros de "Prazos chegando" antes de listá-los.
+
+    Cada grupo é um edital que pode ter sido publicado mais de uma vez (veja ``radar.repetidos``) e
+    cada registro dele é conferido, para que o "também publicado como" nunca aponte para um edital
+    excluído. Registro excluído, ou prorrogado para fora da janela, sai (e o guardado é corrigido).
+    O publicado por último que valer é o principal. Só quando a conferência não rola (sem consultas
+    sobrando, ou o PNCP não responde) o guardado é aceito como está. Grupo em que nenhum registro vale
+    sai da lista. Devolve a lista e quantos editais ficaram na janela, para o "mais N" da mensagem.
+    """
+    alerta = cfg.alerta
+    orcamento = cfg.ingestao.conferencias_alerta_max
+    escolhidos: list[Item] = []
+    fora = 0
+    consultas = 0
+    incertos_seguidos = 0
+    for grupo in grupos:  # em ordem de prazo
+        if len(escolhidos) >= alerta.max_vencendo:
+            break
+        vivos: list[Item] = []  # conferidos e valem
+        sem_conferir: list[Item] = []  # sem consulta, ou o PNCP não respondeu
+        for item in grupo:
+            if consultas < orcamento and incertos_seguidos < INCERTOS_SEGUIDOS_PARA_PARAR:
+                consultas += 1
+                c = conferir_no_pncp(client, store, item.row, now)
+                incertos_seguidos = incertos_seguidos + 1 if c.resultado == INCERTO else 0
+                if c.resultado == EXCLUIDO:
+                    continue
+                if c.resultado == ATUALIZADO and c.row is not None:
+                    novo = Item(c.row, scorer.score(c.row, now))
+                    if not selecionar_vencendo([novo], now, alerta, ja_no_resumo):
+                        continue  # prorrogado para depois da janela, suspenso ou deixou de combinar
+                    item = novo
+                (sem_conferir if c.resultado == INCERTO else vivos).append(item)
+            else:
+                sem_conferir.append(item)
+        validos = vivos or sem_conferir  # na dúvida de todos, vale o guardado
+        if not validos:
+            fora += 1
+            continue
+        principal, *outros = validos
+        principal.iguais = [i.row for i in outros]
+        escolhidos.append(principal)
+    return escolhidos, len(grupos) - fora
+
+
 # ------------------------------------------------------------------------- alerta
 
 
 def _ordem(item: Item) -> tuple[int, float, str]:
     return (-item.result.score, -(item.row.get("valor_estimado") or 0), item.row["id"])
+
+
+def _um_por_edital(itens: list[Item], antigos: repetidos.Indice) -> list[Item]:
+    """Um item por edital: o publicado por último, com os outros registros dele em ``iguais``.
+
+    Além dos que vieram juntos, entra o registro mais antigo que o robô já tinha (a republicação de um
+    edital de ontem aparece como novo, mas não é uma oportunidade nova).
+    """
+    unicos: list[Item] = []
+    for grupo in repetidos.agrupar(itens, lambda i: i.row):
+        principal, *outros = grupo
+        no_grupo = {i.row["id"] for i in grupo}
+        principal.iguais = [i.row for i in outros] + [
+            r for r in antigos.iguais_a(principal.row) if r["id"] not in no_grupo
+        ]
+        unicos.append(principal)
+    return unicos
 
 
 def janela_de_prazo(alerta: Alerta, now: datetime) -> tuple[datetime, datetime]:
@@ -330,7 +472,7 @@ def janela_de_prazo(alerta: Alerta, now: datetime) -> tuple[datetime, datetime]:
 def selecionar_vencendo(
     candidatos: list[Item], now: datetime, alerta: Alerta, ja_no_resumo: set[str]
 ) -> list[Item]:
-    """Relevantes que vencem dentro da janela, do prazo mais próximo ao mais distante."""
+    """Todos os relevantes que vencem dentro da janela, do prazo mais próximo ao mais distante."""
     inicio, fim = janela_de_prazo(alerta, now)
     return sorted(
         (
@@ -342,12 +484,13 @@ def selecionar_vencendo(
             and inicio <= i.row["data_encerramento_proposta"] <= fim
         ),
         key=lambda i: (i.row["data_encerramento_proposta"], i.row["id"]),
-    )[: alerta.max_vencendo]
+    )
 
 
 def _alertar(
     cfg: Config,
     opts: RunOptions,
+    client: PncpClient,
     store: Store,
     scorer: Scorer,
     ingerido: Ingerido,
@@ -362,7 +505,12 @@ def _alertar(
     novos = [Item(fetched[i], scorer.score(fetched[i], now)) for i in new_ids if i in fetched]
     relevantes = sorted((i for i in novos if i.result.relevante), key=_ordem)
     rec.rows_relevant_new = len(relevantes)
-    top = relevantes[: alerta.top_n]
+    # o mesmo edital publicado duas vezes (veja radar.repetidos) aparece uma vez, com o número do outro
+    abertos = store.current_state("WHERE data_encerramento_proposta >= ?", [now])
+    antigos = repetidos.Indice(r for r in abertos if not edital_inativo(r))
+    novos_unicos = _um_por_edital(relevantes, antigos)
+    top = novos_unicos[: alerta.top_n]
+    ids_no_resumo = {r["id"] for i in top for r in [i.row, *i.iguais]}
 
     if opts.dry_run:
         candidatos = [Item(r, scorer.score(r, now)) for r in fetched.values()]
@@ -373,16 +521,30 @@ def _alertar(
             [inicio, fim],
         )
         candidatos = [Item(r, scorer.score(r, now)) for r in estado]
-    vencendo = selecionar_vencendo(candidatos, now, alerta, {i.row["id"] for i in top})
+    grupos = repetidos.agrupar(
+        selecionar_vencendo(candidatos, now, alerta, ids_no_resumo), lambda i: i.row
+    )
+    if (
+        opts.dry_run
+    ):  # a prévia não grava nada, então também não confere (conferir corrige o guardado)
+        vencendo, vencendo_total = [], len(grupos)
+        for grupo in grupos[: alerta.max_vencendo]:
+            grupo[0].iguais = [i.row for i in grupo[1:]]
+            vencendo.append(grupo[0])
+    else:
+        vencendo, vencendo_total = _conferir_vencendo(
+            grupos, client, store, scorer, cfg, ids_no_resumo, now
+        )
 
     resumo = Resumo(
-        analisados=len(ingerido.ids_publicacao),  # só o que a busca por publicação leu
         novos=len(new_ids),
-        relevantes_novos=len(relevantes),
+        relevantes_novos=len(novos_unicos),
+        vencendo_total=vencendo_total,
         series_total=rec.series_total,
         series_falhas=[f["serie"].split("@")[0] for f in rec.series_failed],
         prazo_min_dias=alerta.prazo_minimo_dias,
         prazo_max_dias=alerta.dias_prazo_proximo,
+        painel_url=alerta.painel_url,
     )
     outcome.itens = top + vencendo
     mensagens: list[str] = []

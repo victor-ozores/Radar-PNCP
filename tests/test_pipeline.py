@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import csv
 import hashlib
 import json
@@ -11,6 +12,7 @@ import pytest
 from helpers import FakeClient, FakeNotifier, load_sample_items
 from radar.alerts.render import Item
 from radar.audit import RunLog
+from radar.normalize import SITUACAO_EXCLUIDA
 from radar.pipeline import (
     PipelineError,
     RunOptions,
@@ -18,7 +20,7 @@ from radar.pipeline import (
     run_pipeline,
     selecionar_vencendo,
 )
-from radar.pncp_client import PncpRateLimited
+from radar.pncp_client import PncpRateLimited, PncpServerError
 from radar.scoring import ScoreResult
 from radar.store import Store
 
@@ -89,7 +91,7 @@ def test_segunda_execucao_e_idempotente(tmp_path, cfg_pequena, agora):
 
     assert out.record.rows_new == 0 and out.record.rows_unchanged == 20
     assert hashes(tmp_path / "data") == antes  # nenhum byte mudou
-    assert "Nenhum edital novo relevante" in notifier.enviadas[0]  # avisa mesmo sem novidades
+    assert "Nenhum edital novo combina" in notifier.enviadas[0]  # avisa mesmo sem novidades
     assert len(RunLog(Store(tmp_path / "data")).all()) == 2
 
 
@@ -366,22 +368,37 @@ def test_alterados_usam_um_periodo_proprio_menor(cfg):
     assert {s.fim for s in series} == {date(2026, 10, 19)}
 
 
-def test_resumo_conta_como_analisados_so_os_lidos_por_publicacao(tmp_path, cfg_pequena, agora):
+def test_cabecalho_conta_os_novos_lidos_como_a_tabela_de_execucoes(tmp_path, cfg_pequena, agora):
+    """O "novos lidos" do Telegram é o mesmo número de `rows_new` em pipeline_runs."""
     amostra = load_sample_items()
     extras = [
         _alterado(amostra, numeroControlePNCP=f"2222222200011{i}-1-00000{i}/2026") for i in range(3)
     ]
     notifier = FakeNotifier()
-    run_pipeline(
+    out = run_pipeline(
         cfg_pequena,
         opts(tmp_path),
         client=FakeClient(amostra, atualizados=extras),
         notifier=notifier,
         now=agora,
     )
+    assert out.record.rows_new == 23  # 20 da busca por publicação + 3 que só a atualização trouxe
+    assert "entre 23 novos lidos hoje" in notifier.enviadas[0]
+
+
+def test_alerta_leva_o_link_do_painel_da_configuracao(tmp_path, cfg_pequena, agora):
+    notifier = FakeNotifier()
+    run_pipeline(cfg_pequena, opts(tmp_path), client=FakeClient(), notifier=notifier, now=agora)
     assert (
-        "20 analisados" in notifier.enviadas[0]
-    )  # os 3 vindos de 'atualizados' não entram na conta
+        f'<a href="{cfg_pequena.alerta.painel_url}">Ver todos no painel</a>' in notifier.enviadas[0]
+    )
+    sem_link = cfg_pequena.model_copy(deep=True)
+    sem_link.alerta.painel_url = None
+    notifier2 = FakeNotifier()
+    run_pipeline(
+        sem_link, opts(tmp_path / "outro"), client=FakeClient(), notifier=notifier2, now=agora
+    )
+    assert "painel" not in notifier2.enviadas[0]
 
 
 def test_falha_so_na_consulta_de_atualizacao_vira_partial(tmp_path, cfg_pequena, agora):
@@ -435,5 +452,353 @@ def test_alerta_traz_vencendo_sem_repetir_os_novos(tmp_path, cfg_pequena, agora)
         now=agora + timedelta(hours=1),
     )  # fmt: skip
     texto = "\n".join(notifier.enviadas)
-    assert "Prazos chegando" in texto and "Nenhum edital novo relevante" in texto
+    assert "Prazos chegando" in texto and "Nenhum edital novo combina" in texto
     assert datetime.fromisoformat(itens[0]["dataEncerramentoProposta"]).strftime("%d/%m") in texto
+
+
+# --------------------------------------------------------------------- conferência semanal e no alerta
+
+
+def _abertos(tmp_path, cfg, agora, dias=5, relevantes=False):
+    """Guarda a amostra como editais abertos (prazo daqui a `dias`) e devolve os itens brutos."""
+    itens = load_sample_items()
+    for n, i in enumerate(itens, 1):
+        i["situacaoCompraId"], i["situacaoCompraNome"] = 1, "Divulgada no PNCP"
+        i["dataEncerramentoProposta"] = (agora + timedelta(days=dias)).isoformat(timespec="seconds")
+        if relevantes:
+            # texto diferente em cada um: edital com o mesmo texto, órgão, valor e prazo é "repetido"
+            i["objetoCompra"] = f"Execução de obras de reforma predial, lote {n}"
+            i["valorTotalEstimado"] = 900_000.0
+    run_pipeline(cfg, opts(tmp_path), client=FakeClient(itens), notifier=FakeNotifier(), now=agora)
+    return itens
+
+
+def _id(item):
+    return item["numeroControlePNCP"]
+
+
+def _compras_chamadas(client):
+    return [c for c in client.chamadas if c[0] == "compra"]
+
+
+def _estado(tmp_path):
+    return {r["id"]: r for r in Store(tmp_path / "data").current_state()}
+
+
+def test_reconciliacao_usa_as_propostas_abertas_ate_a_janela_do_config(cfg):
+    hoje = date(2026, 10, 19)
+    series, inicio, fim = plan_series(cfg, RunOptions(data_dir=".", modo="reconcile"), hoje)
+    assert len(series) == 16 and {s.feed for s in series} == {"publicacao"}
+    assert (inicio, fim) == (hoje, hoje + timedelta(days=cfg.ingestao.reconciliacao_dias))
+    assert {s.fim for s in series} == {fim} and {s.inicio for s in series} == {None}
+    _, _, fim5 = plan_series(
+        cfg, RunOptions(data_dir=".", modo="reconcile", reconciliar_dias=5), hoje
+    )
+    assert fim5 == hoje + timedelta(days=5)
+
+
+def test_conferencia_semanal_corrige_o_que_a_listagem_nao_confirma(tmp_path, cfg_pequena, agora):
+    itens = _abertos(tmp_path, cfg_pequena, agora)
+    excluido, prorrogado, incerto, *na_listagem = itens
+    mudou = {
+        **prorrogado,
+        "dataEncerramentoProposta": (agora + timedelta(days=40)).isoformat(timespec="seconds"),
+    }
+    client = FakeClient(
+        na_listagem,
+        compras={_id(excluido): None, _id(prorrogado): mudou, _id(incerto): PncpServerError("x")},
+    )
+    notifier = FakeNotifier()
+    out = run_pipeline(
+        cfg_pequena,
+        opts(tmp_path, modo="reconcile"),
+        client=client,
+        notifier=notifier,
+        now=agora + timedelta(days=1),
+    )
+    rec, estado = out.record, _estado(tmp_path)
+
+    assert rec.status == "success" and rec.rows_read == len(na_listagem) and rec.rows_new == 0
+    assert estado[_id(excluido)]["situacao_id"] == SITUACAO_EXCLUIDA
+    assert estado[_id(prorrogado)]["data_encerramento_proposta"] == agora + timedelta(days=40)
+    assert estado[_id(incerto)]["situacao_id"] == 1  # na dúvida, não mexe
+    conferidos = {k: v for k, v in rec.quality_warnings.items() if k.startswith("conferido_")}
+    assert conferidos == {
+        "conferido_excluido": 1,
+        "conferido_atualizado": 1,
+        "conferido_incerto": 1,
+    }
+    assert rec.prazos_alterados == 1 and rec.situacoes_alteradas == 1
+    assert len(_compras_chamadas(client)) == 3  # só os 3 que a listagem não trouxe
+    assert notifier.enviadas == [] and not rec.alert_sent  # conferência não manda alerta
+
+
+def test_conferencia_ignora_serie_que_falhou(tmp_path, cfg_pequena, agora):
+    """Se a busca de 4/SP caiu, o que sumiu dela não prova nada: nenhuma consulta individual."""
+    itens = _abertos(tmp_path, cfg_pequena, agora)
+    client = FakeClient(itens, falhas={(4, "SP"): PncpRateLimited("429 persistente")})
+    out = run_pipeline(
+        cfg_pequena,
+        opts(tmp_path, modo="reconcile"),
+        client=client,
+        notifier=FakeNotifier(),
+        now=agora + timedelta(days=1),
+    )
+    assert out.record.status == "partial"
+    assert _compras_chamadas(client) == []
+    assert all(r["situacao_id"] == 1 for r in _estado(tmp_path).values())
+
+
+def test_conferencia_para_quando_o_pncp_nao_responde(tmp_path, cfg_pequena, agora):
+    itens = _abertos(tmp_path, cfg_pequena, agora)
+    compras = {_id(i): PncpServerError("fora do ar") for i in itens}
+    client = FakeClient([], compras=compras)  # a listagem veio vazia: tudo é suspeito
+    out = run_pipeline(
+        cfg_pequena,
+        opts(tmp_path, modo="reconcile"),
+        client=client,
+        notifier=FakeNotifier(),
+        now=agora + timedelta(days=1),
+    )
+    assert len(_compras_chamadas(client)) == 2  # duas respostas incertas seguidas: chega
+    qw = out.record.quality_warnings
+    assert qw["conferido_incerto"] == 2 and qw["conferencia_pendente"] == len(itens) - 2
+    assert all(r["situacao_id"] == 1 for r in _estado(tmp_path).values())
+
+
+def test_conferencia_respeita_o_maximo_por_execucao(tmp_path, cfg_pequena, agora):
+    itens = _abertos(tmp_path, cfg_pequena, agora)
+    cfg = cfg_pequena.model_copy(deep=True)
+    cfg.ingestao.conferencias_max = 3
+    client = FakeClient([])  # nada na listagem e nada na consulta individual: "excluído"
+    out = run_pipeline(
+        cfg,
+        opts(tmp_path, modo="reconcile"),
+        client=client,
+        notifier=None,
+        now=agora + timedelta(days=1),
+    )
+    qw = out.record.quality_warnings
+    assert len(_compras_chamadas(client)) == 3
+    assert qw["conferido_excluido"] == 3 and qw["conferencia_pendente"] == len(itens) - 3
+
+
+def test_prazos_chegando_nao_lista_excluido_nem_prorrogado_e_corrige_o_guardado(
+    tmp_path, cfg_pequena, agora
+):
+    itens = _abertos(tmp_path, cfg_pequena, agora, dias=3, relevantes=True)
+    ordem = sorted(itens, key=_id)  # prazos iguais: "Prazos chegando" sai na ordem do id
+    excluido, prorrogado = ordem[0], ordem[1]
+    mudou = {
+        **prorrogado,
+        "dataEncerramentoProposta": (agora + timedelta(days=30)).isoformat(timespec="seconds"),
+    }
+    client = FakeClient(itens, compras={_id(excluido): None, _id(prorrogado): mudou})
+    notifier = FakeNotifier()
+    run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=client,
+        notifier=notifier,
+        now=agora + timedelta(hours=1),
+    )
+    texto = "\n".join(notifier.enviadas)
+
+    listados = set(re.findall(r"editais/(\d{14}/\d{4}/\d+)", texto))
+    for fora in (excluido, prorrogado):
+        endereco = f"{fora['orgaoEntidade']['cnpj']}/{fora['anoCompra']}/{fora['sequencialCompra']}"
+        assert endereco not in listados
+    assert len(listados) == 5  # a lista continua cheia: entraram os seguintes
+    assert (
+        "Mais 13 outros vencem nesse período" in texto
+    )  # 20 na janela - 2 que saíram - 5 listados
+    estado = _estado(tmp_path)
+    assert estado[_id(excluido)]["situacao_id"] == SITUACAO_EXCLUIDA
+    assert estado[_id(prorrogado)]["data_encerramento_proposta"] == agora + timedelta(days=30)
+    assert len(_compras_chamadas(client)) == 7  # os 5 listados + os 2 que saíram
+
+
+def test_erro_na_conferencia_do_alerta_nao_impede_o_alerta(tmp_path, cfg_pequena, agora):
+    itens = _abertos(tmp_path, cfg_pequena, agora, dias=3, relevantes=True)
+    client = FakeClient(itens, compras={_id(i): PncpServerError("fora do ar") for i in itens})
+    notifier = FakeNotifier()
+    out = run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=client,
+        notifier=notifier,
+        now=agora + timedelta(hours=1),
+    )
+    assert out.record.alert_sent and "Prazos chegando" in "\n".join(notifier.enviadas)
+    assert len(_compras_chamadas(client)) == 2  # parou depois de 2 incertas seguidas
+    assert all(r["situacao_id"] == 1 for r in _estado(tmp_path).values())
+
+
+def test_conferencia_do_alerta_respeita_o_orcamento_e_a_previa_nao_confere(
+    tmp_path, cfg_pequena, agora
+):
+    itens = _abertos(tmp_path, cfg_pequena, agora, dias=3, relevantes=True)
+    cfg = cfg_pequena.model_copy(deep=True)
+    cfg.ingestao.conferencias_alerta_max = 2
+    client = FakeClient(itens)
+    run_pipeline(
+        cfg, opts(tmp_path), client=client, notifier=FakeNotifier(), now=agora + timedelta(hours=1)
+    )
+    assert len(_compras_chamadas(client)) == 2
+
+    previa = FakeClient(itens)
+    run_pipeline(
+        cfg_pequena,
+        opts(tmp_path, dry_run=True),
+        client=previa,
+        notifier=None,
+        now=agora + timedelta(hours=2),
+    )
+    assert _compras_chamadas(previa) == []  # a prévia não grava, então também não confere
+
+
+# --------------------------------------------------------------------- edital publicado duas vezes
+
+
+def _gemeos(agora, dias=5, n=2):
+    """Registros do mesmo edital no PNCP (órgão, texto, valor e prazo iguais); o último é o republicado."""
+    base = load_sample_items()[0]
+    cnpj = base["orgaoEntidade"]["cnpj"]
+    registros = []
+    for k in range(n):
+        r = copy.deepcopy(base)
+        seq = 101 + 9 * k
+        r.update(
+            numeroControlePNCP=f"{cnpj}-1-{seq:06d}/2026",
+            sequencialCompra=seq,
+            anoCompra=2026,
+            numeroCompra="34" if k == 0 else f"34/2026REPUBLICADO{k}",
+            dataPublicacaoPncp=(agora - timedelta(days=3, hours=-3 * k)).isoformat(
+                timespec="seconds"
+            ),
+            objetoCompra="Execução de obras de reforma predial",
+            valorTotalEstimado=900_000.0,
+            dataEncerramentoProposta=(agora + timedelta(days=dias)).isoformat(timespec="seconds"),
+            situacaoCompraId=1,
+            situacaoCompraNome="Divulgada no PNCP",
+        )
+        registros.append(r)
+    return registros
+
+
+def _cnpj():
+    return load_sample_items()[0]["orgaoEntidade"]["cnpj"]
+
+
+def test_alerta_mostra_uma_vez_o_edital_publicado_duas_vezes(tmp_path, cfg_pequena, agora):
+    original, republicado = _gemeos(agora)
+    notifier = FakeNotifier()
+    out = run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=FakeClient([original, republicado]),
+        notifier=notifier,
+        now=agora,
+    )
+    texto = "\n".join(notifier.enviadas)
+
+    assert texto.count("🏛") == 1 and "<b>1</b> edital novo combina com o perfil" in texto
+    assert out.record.rows_relevant_new == 2  # o registro da execução conta os dois, a mensagem um
+    # o principal é o publicado por último; o original vira "também publicado como"
+    assert f"{_cnpj()}/2026/110" in texto
+    assert (
+        f'🔁 Também publicado como <a href="https://pncp.gov.br/app/editais/{_cnpj()}/2026/101">'
+        in texto
+    )
+    assert "nº 34/2026</a>" in texto
+
+
+def test_republicacao_de_edital_que_o_robo_ja_tinha_traz_o_numero_do_antigo(
+    tmp_path, cfg_pequena, agora
+):
+    original, republicado = _gemeos(agora)
+    run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=FakeClient([original]),
+        notifier=FakeNotifier(),
+        now=agora - timedelta(days=1),
+    )
+    notifier = FakeNotifier()
+    run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=FakeClient([original, republicado]),
+        notifier=notifier,
+        now=agora,
+    )
+    texto = "\n".join(notifier.enviadas)
+    assert "<b>1</b> edital novo combina" in texto and texto.count("🏛") == 1
+    assert "nº 34/2026</a>" in texto  # o antigo, que já estava guardado
+    assert "Prazos chegando" not in texto  # e não volta na outra seção como se fosse outro edital
+
+
+def test_prazos_chegando_confere_os_dois_registros_e_nao_cita_o_excluido(
+    tmp_path, cfg_pequena, agora
+):
+    original, republicado = _gemeos(agora)
+    run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=FakeClient([original, republicado]),
+        notifier=FakeNotifier(),
+        now=agora,
+    )
+    client = FakeClient([original, republicado], compras={_id(original): None})  # o PNCP excluiu
+    notifier = FakeNotifier()
+    run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=client,
+        notifier=notifier,
+        now=agora + timedelta(hours=1),
+    )
+    texto = "\n".join(notifier.enviadas)
+
+    assert "Prazos chegando" in texto and texto.count("🏛") == 1
+    assert "🔁" not in texto  # o outro registro foi excluído: não é "também publicado como"
+    assert _estado(tmp_path)[_id(original)]["situacao_id"] == SITUACAO_EXCLUIDA
+    assert len(_compras_chamadas(client)) == 2  # cada registro foi conferido
+
+
+def test_prazos_chegando_com_os_dois_registros_vivos_cita_o_outro(tmp_path, cfg_pequena, agora):
+    original, republicado = _gemeos(agora)
+    run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=FakeClient([original, republicado]),
+        notifier=FakeNotifier(),
+        now=agora,
+    )
+    client = FakeClient([original, republicado])
+    notifier = FakeNotifier()
+    run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=client,
+        notifier=notifier,
+        now=agora + timedelta(hours=1),
+    )
+    texto = "\n".join(notifier.enviadas)
+
+    assert texto.count("🏛") == 1 and f"{_cnpj()}/2026/110" in texto
+    assert "🔁 Também publicado como" in texto and "nº 34/2026</a>" in texto
+    assert len(_compras_chamadas(client)) == 2
+
+
+def test_tres_registros_do_mesmo_edital_viram_um_com_e_mais_um(tmp_path, cfg_pequena, agora):
+    notifier = FakeNotifier()
+    run_pipeline(
+        cfg_pequena,
+        opts(tmp_path),
+        client=FakeClient(_gemeos(agora, n=4)),
+        notifier=notifier,
+        now=agora,
+    )
+    texto = "\n".join(notifier.enviadas)
+    assert texto.count("🏛") == 1 and texto.count("🔁") == 1 and " e mais 1" in texto

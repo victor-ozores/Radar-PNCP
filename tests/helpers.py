@@ -31,6 +31,7 @@ class FakeClient:
         falha_total: Exception | None = None,
         atualizados: list[dict[str, Any]] | None = None,
         falhas_atualizacao: dict[tuple[int, str], Exception] | None = None,
+        compras: dict[str, dict[str, Any] | Exception | None] | None = None,
     ) -> None:
         self.items = items if items is not None else load_sample_items()
         self.ignora_uf = ignora_uf
@@ -39,6 +40,9 @@ class FakeClient:
         # o que a consulta por ATUALIZAÇÃO devolve (por padrão, nada: a maioria dos testes ignora)
         self.atualizados = atualizados or []
         self.falhas_atualizacao = falhas_atualizacao or {}
+        # consulta individual: id -> o que o PNCP responde (dict), ou None (excluído), ou um erro.
+        # O que não estiver aqui é achado entre os itens e os alterados, e senão "não existe" (None).
+        self.compras = compras or {}
         self.stats = ClientStats()
         self.chamadas: list[tuple[str, int | None, str | None]] = []
 
@@ -74,6 +78,20 @@ class FakeClient:
     def iter_proposta(self, fim: date, modalidade: int | None = None, uf: str | None = None):
         self.chamadas.append(("proposta", modalidade, uf))
         return self._paginas(modalidade, uf, self.items, self.falhas)
+
+    def get_compra(self, cnpj: str, ano: int, sequencial: int) -> dict[str, Any] | None:
+        self.stats.api_calls += 1
+        id_ = f"{cnpj}-1-{sequencial:06d}/{ano}"
+        self.chamadas.append(("compra", None, id_))
+        if id_ in self.compras:
+            resposta = self.compras[id_]
+            if isinstance(resposta, Exception):
+                raise resposta
+            return copy.deepcopy(resposta)
+        for item in [*self.atualizados, *self.items]:
+            if item["numeroControlePNCP"] == id_:
+                return copy.deepcopy(item)
+        return None
 
     def close(self) -> None:
         pass
