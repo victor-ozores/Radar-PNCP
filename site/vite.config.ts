@@ -11,5 +11,6 @@ export default defineConfig(({ command, mode, isPreview }) => ({
   test: {
     environment: "node",
     include: ["src/**/*.test.{ts,tsx}"],
+    setupFiles: ["src/testes/preparo.ts"],
   },
 }));

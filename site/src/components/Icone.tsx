@@ -46,6 +46,12 @@ const DESENHOS = {
     </>
   ),
   grafico: <path d="M5 20V10M12 20V4M19 20v-7" />,
+  copia: (
+    <>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+    </>
+  ),
   externo: (
     <>
       <path d="M14 4h6v6M20 4l-9 9" />

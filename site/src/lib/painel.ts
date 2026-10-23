@@ -1,6 +1,6 @@
 import { dobra, valorConfiavel } from "./formatos";
-import { diasAte } from "./tempo";
-import type { Combina, Edital, Painel } from "./types";
+import { diaBR, diasAte, diaCurto, somaDias } from "./tempo";
+import type { Combina, Edital, Painel, Repetido } from "./types";
 
 /** Versão do `painel.json` que esta página sabe ler (ver `VERSAO` em src/radar/painel.py). */
 export const VERSAO_SUPORTADA = 1;
@@ -16,7 +16,14 @@ export class PainelInvalido extends Error {
 
 const COMBINA: readonly Combina[] = ["muito", "combina", "parcial"];
 
-function ehEdital(x: unknown): x is Edital {
+/** Como o edital chega no arquivo: `link` e `repetidos` ainda não foram conferidos. */
+type EditalBruto = Omit<Edital, "link" | "repetidos" | "numero"> & {
+  link?: unknown;
+  repetidos?: unknown;
+  numero?: unknown;
+};
+
+function ehEdital(x: unknown): x is EditalBruto {
   if (typeof x !== "object" || x === null) return false;
   const e = x as Record<string, unknown>;
   return (
@@ -29,6 +36,34 @@ function ehEdital(x: unknown): x is Edital {
     (COMBINA as readonly string[]).includes(e.combina) &&
     Array.isArray(e.termos)
   );
+}
+
+/** Só endereço web de verdade vira link (o arquivo é de fora da página). */
+function linkSeguro(x: unknown): string | null {
+  return typeof x === "string" && /^https?:\/\//i.test(x) ? x : null;
+}
+
+function leRepetidos(x: unknown): Repetido[] {
+  if (!Array.isArray(x)) return [];
+  return x.flatMap((r): Repetido[] => {
+    if (typeof r !== "object" || r === null) return [];
+    const o = r as Record<string, unknown>;
+    if (typeof o.id !== "string") return [];
+    return [
+      {
+        id: o.id,
+        numero: numeroLimpo(o.numero),
+        link: linkSeguro(o.link),
+        publicado: typeof o.publicado === "string" ? o.publicado : null,
+      },
+    ];
+  });
+}
+
+const numeroLimpo = (x: unknown): string | null => (typeof x === "string" && x.trim() ? x.trim() : null);
+
+function leEdital(e: EditalBruto): Edital {
+  return { ...e, numero: numeroLimpo(e.numero), link: linkSeguro(e.link), repetidos: leRepetidos(e.repetidos) };
 }
 
 /** Confere o arquivo antes de a página confiar nele. Edital com defeito é descartado, não derruba a página. */
@@ -54,7 +89,7 @@ export function lePainel(bruto: unknown): Painel {
   ) {
     throw new PainelInvalido("formato", "faltam campos obrigatórios");
   }
-  return { ...(p as unknown as Painel), editais: p.editais.filter(ehEdital) };
+  return { ...(p as unknown as Painel), editais: p.editais.filter(ehEdital).map(leEdital) };
 }
 
 // --------------------------------------------------------------------------- quais editais valem
@@ -95,6 +130,31 @@ export const FAIXAS_VALOR = [
 ] as const;
 
 export const SEM_VALOR = "sem-valor";
+
+/** As datas de uma faixa de prazo do gráfico, contadas a partir de `hoje` (`AAAA-MM-DD`). */
+export function intervaloDaFaixa(faixa: (typeof FAIXAS_PRAZO)[number], hoje: string): { de: string; ate: string } {
+  return {
+    de: faixa.min === null ? "" : somaDias(hoje, faixa.min),
+    ate: faixa.max === null ? "" : somaDias(hoje, faixa.max),
+  };
+}
+
+/** "Até N dias": do começo até hoje + N. */
+export function atePrazoEmDias(hoje: string, dias: number): { de: string; ate: string } {
+  return { de: "", ate: somaDias(hoje, dias) };
+}
+
+/** Primeiro e último dia de prazo entre os editais (para limitar o calendário aos dias que existem). */
+export function intervaloDisponivel(editais: Edital[]): { min: string; max: string } | null {
+  let min = "";
+  let max = "";
+  for (const e of editais) {
+    const d = diaDoPrazo(e);
+    if (!min || d < min) min = d;
+    if (!max || d > max) max = d;
+  }
+  return min ? { min, max } : null;
+}
 
 export function faixasPrazo(editais: Edital[], agora: Date): Linha[] {
   const contagem = new Map<string, number>(FAIXAS_PRAZO.map((f) => [f.id, 0]));
@@ -198,9 +258,9 @@ export interface Filtro {
   cidade: string;
   /** Uma palavra do perfil que o robô encontrou ("obra"); "" = qualquer. */
   termo: string;
-  /** Prazo entre N e M dias de calendário (inclusive); `null` = sem limite naquele lado. */
-  prazoMin: number | null;
-  prazoMax: number | null;
+  /** Prazo entre duas datas (dia de Brasília, `AAAA-MM-DD`, inclusive); "" = sem limite naquele lado. */
+  prazoDe: string;
+  prazoAte: string;
   /** id de `FAIXAS_VALOR`, `SEM_VALOR` ou "" (qualquer). */
   faixa: string;
   registro: boolean;
@@ -213,8 +273,8 @@ export const FILTRO_INICIAL: Filtro = {
   uf: "",
   cidade: "",
   termo: "",
-  prazoMin: null,
-  prazoMax: null,
+  prazoDe: "",
+  prazoAte: "",
   faixa: "",
   registro: false,
   incluirEmParte: false,
@@ -229,10 +289,10 @@ export interface FiltroAtivo {
   texto: string;
 }
 
-function textoPrazo(min: number | null, max: number | null): string {
-  if (min === null && max !== null) return `Prazo em até ${max} dias`;
-  if (min !== null && max !== null) return `Prazo de ${min} a ${max} dias`;
-  return `Prazo a partir de ${min} dias`;
+function textoPrazo(de: string, ate: string): string {
+  if (de && ate) return de === ate ? `Prazo em ${diaCurto(de)}` : `Prazo de ${diaCurto(de)} a ${diaCurto(ate)}`;
+  if (ate) return `Prazo até ${diaCurto(ate)}`;
+  return `Prazo a partir de ${diaCurto(de)}`;
 }
 
 export function filtrosAtivos(f: Filtro): FiltroAtivo[] {
@@ -241,9 +301,7 @@ export function filtrosAtivos(f: Filtro): FiltroAtivo[] {
   if (f.uf) ativos.push({ chave: "uf", texto: `Estado: ${f.uf}` });
   if (f.cidade) ativos.push({ chave: "cidade", texto: `Cidade: ${f.cidade}` });
   if (f.termo) ativos.push({ chave: "termo", texto: `Palavra: ${f.termo}` });
-  if (f.prazoMin !== null || f.prazoMax !== null) {
-    ativos.push({ chave: "prazo", texto: textoPrazo(f.prazoMin, f.prazoMax) });
-  }
+  if (f.prazoDe || f.prazoAte) ativos.push({ chave: "prazo", texto: textoPrazo(f.prazoDe, f.prazoAte) });
   if (f.faixa) {
     const faixa = FAIXAS_VALOR.find((v) => v.id === f.faixa);
     ativos.push({ chave: "faixa", texto: f.faixa === SEM_VALOR ? "Valor não informado" : `Valor: ${faixa?.rotulo ?? f.faixa}` });
@@ -257,7 +315,7 @@ export function filtrosAtivos(f: Filtro): FiltroAtivo[] {
 export function semFiltro(f: Filtro, chave: ChaveFiltro): Filtro {
   switch (chave) {
     case "prazo":
-      return { ...f, prazoMin: null, prazoMax: null };
+      return { ...f, prazoDe: "", prazoAte: "" };
     case "busca":
     case "uf":
     case "cidade":
@@ -286,18 +344,32 @@ function textoBusca(e: Edital): string {
   return t;
 }
 
-export function filtrar(editais: Edital[], f: Filtro, agora: Date): Edital[] {
+const diaPorEdital = new WeakMap<Edital, string>();
+
+/** O dia (em Brasília) em que o prazo do edital acaba, `AAAA-MM-DD`. */
+export function diaDoPrazo(e: Edital): string {
+  let d = diaPorEdital.get(e);
+  if (d === undefined) {
+    d = diaBR(new Date(e.prazo));
+    diaPorEdital.set(e, d);
+  }
+  return d;
+}
+
+export function filtrar(editais: Edital[], f: Filtro): Edital[] {
   const palavras = dobra(f.busca).split(" ").filter(Boolean);
+  // datas trocadas de lugar não dão lista vazia: vale o intervalo entre as duas
+  const [de, ate] = f.prazoDe && f.prazoAte && f.prazoDe > f.prazoAte ? [f.prazoAte, f.prazoDe] : [f.prazoDe, f.prazoAte];
   const achados = editais.filter((e) => {
     if (!f.incluirEmParte && e.combina === "parcial") return false;
     if (f.uf && e.uf !== f.uf) return false;
     if (f.cidade && `${e.municipio} / ${e.uf}` !== f.cidade) return false;
     if (f.termo && !e.termos.includes(f.termo)) return false;
     if (f.registro && !e.registro_de_precos) return false;
-    if (f.prazoMin !== null || f.prazoMax !== null) {
-      const dias = diasAte(e.prazo, agora);
-      if (f.prazoMin !== null && dias < f.prazoMin) return false;
-      if (f.prazoMax !== null && dias > f.prazoMax) return false;
+    if (de || ate) {
+      const dia = diaDoPrazo(e);
+      if (de && dia < de) return false;
+      if (ate && dia > ate) return false;
     }
     if (f.faixa && idFaixaValor(e.valor) !== f.faixa) return false;
     if (palavras.length) {

@@ -2,15 +2,20 @@ import { describe, expect, it } from "vitest";
 
 import { AGORA, edital, emDias, painel } from "../testes/modelos";
 import {
+  FAIXAS_PRAZO,
   FILTRO_INICIAL,
   PainelInvalido,
   SEM_VALOR,
+  atePrazoEmDias,
   combinam,
+  diaDoPrazo,
   faixasPrazo,
   filtrar,
   filtroLimpo,
   filtrosAtivos,
   idFaixaValor,
+  intervaloDaFaixa,
+  intervaloDisponivel,
   lePainel,
   mediana,
   ordenar,
@@ -22,6 +27,7 @@ import {
   topMunicipios,
   vigentes,
 } from "./painel";
+import type { Edital } from "./types";
 
 describe("lePainel", () => {
   it("aceita o formato da versão 1", () => {
@@ -51,6 +57,43 @@ describe("lePainel", () => {
     const combinaInventado = { ...edital(), combina: "talvez" };
     const p = lePainel({ ...painel([bom]), editais: [bom, semPrazo, combinaInventado, null, 7] });
     expect(p.editais.map((e) => e.id)).toEqual([bom.id]);
+  });
+
+  describe("editais publicados duas vezes", () => {
+    const bruto = (extra: Record<string, unknown>) => {
+      const { repetidos: _fora, ...semCampo } = edital();
+      return lePainel({ ...painel([]), editais: [{ ...semCampo, ...extra }] }).editais[0]!;
+    };
+
+    it("lê os outros registros do edital", () => {
+      const outro = { id: "a", numero: "34/2026", link: "https://pncp.gov.br/x", publicado: "2026-10-05" };
+      expect(bruto({ repetidos: [outro] }).repetidos).toEqual([outro]);
+    });
+
+    it("o número do edital vem limpo, ou nulo quando não presta", () => {
+      expect(bruto({ numero: " 12/2026 " }).numero).toBe("12/2026");
+      expect(bruto({}).numero).toBeNull(); // arquivo de antes de o número existir
+      expect(bruto({ numero: 7 }).numero).toBeNull();
+      expect(bruto({ numero: "  " }).numero).toBeNull();
+    });
+
+    it("arquivo sem o campo (formato antigo) vira lista vazia", () => {
+      expect(bruto({}).repetidos).toEqual([]);
+      expect(bruto({ repetidos: "nada" }).repetidos).toEqual([]);
+    });
+
+    it("descarta registro sem id e limpa o que veio torto", () => {
+      const torto = { id: "b", numero: "   ", link: "javascript:alert(1)", publicado: 7 };
+      const lidos = bruto({ repetidos: [torto, { numero: "sem id" }, "texto", null] }).repetidos;
+      expect(lidos).toEqual([{ id: "b", numero: null, link: null, publicado: null }]);
+    });
+
+    it("só deixa virar link endereço web de verdade, no edital e nos repetidos", () => {
+      expect(bruto({ link: "javascript:alert(1)" }).link).toBeNull();
+      expect(bruto({ link: "https://pncp.gov.br/app/editais/1/2026/1" }).link).toBe(
+        "https://pncp.gov.br/app/editais/1/2026/1",
+      );
+    });
   });
 });
 
@@ -154,6 +197,7 @@ describe("números do painel", () => {
 });
 
 describe("filtrar e ordenar", () => {
+  // prazos: escola 23/10, parcial 26/10, pista 02/11 (AGORA é 21/10)
   const escola = edital({
     objeto: "Reforma da escola municipal",
     orgao: "PREFEITURA DE CAMPINAS",
@@ -183,22 +227,44 @@ describe("filtrar e ordenar", () => {
   const todos = [pista, parcial, escola];
 
   it("por padrão esconde o 'em parte' e ordena pelo prazo", () => {
-    expect(filtrar(todos, FILTRO_INICIAL, AGORA)).toEqual([escola, pista]);
+    expect(filtrar(todos, FILTRO_INICIAL)).toEqual([escola, pista]);
   });
 
   it("incluirEmParte traz o que combina só em parte", () => {
-    expect(filtrar(todos, { ...FILTRO_INICIAL, incluirEmParte: true }, AGORA)).toEqual([escola, parcial, pista]);
+    expect(filtrar(todos, { ...FILTRO_INICIAL, incluirEmParte: true })).toEqual([escola, parcial, pista]);
   });
 
-  it("filtra por estado, prazo e faixa de valor", () => {
-    expect(filtrar(todos, { ...FILTRO_INICIAL, uf: "MG" }, AGORA)).toEqual([pista]);
-    expect(filtrar(todos, { ...FILTRO_INICIAL, prazoMax: 7 }, AGORA)).toEqual([escola]);
-    expect(filtrar(todos, { ...FILTRO_INICIAL, faixa: "1a5mi" }, AGORA)).toEqual([pista]);
-    expect(filtrar(todos, { ...FILTRO_INICIAL, faixa: SEM_VALOR, incluirEmParte: true }, AGORA)).toEqual([parcial]);
+  it("filtra por estado e faixa de valor", () => {
+    expect(filtrar(todos, { ...FILTRO_INICIAL, uf: "MG" })).toEqual([pista]);
+    expect(filtrar(todos, { ...FILTRO_INICIAL, faixa: "1a5mi" })).toEqual([pista]);
+    expect(filtrar(todos, { ...FILTRO_INICIAL, faixa: SEM_VALOR, incluirEmParte: true })).toEqual([parcial]);
+  });
+
+  it("filtra por intervalo de datas do prazo (limites inclusivos, cada lado é opcional)", () => {
+    const f = (prazoDe: string, prazoAte: string) =>
+      filtrar(todos, { ...FILTRO_INICIAL, prazoDe, prazoAte, incluirEmParte: true });
+    expect(f("2026-10-23", "2026-10-26")).toEqual([escola, parcial]); // as duas pontas entram
+    expect(f("", "2026-10-25")).toEqual([escola]); // só "até"
+    expect(f("2026-10-27", "")).toEqual([pista]); // só "a partir de"
+    expect(f("2026-10-24", "2026-10-25")).toEqual([]);
+    expect(f("2026-10-23", "2026-10-23")).toEqual([escola]); // um dia só
+  });
+
+  it("datas trocadas de lugar valem como o intervalo entre as duas", () => {
+    expect(filtrar(todos, { ...FILTRO_INICIAL, prazoDe: "2026-11-05", prazoAte: "2026-10-30" })).toEqual([pista]);
+  });
+
+  it("o dia do prazo é o de Brasília, mesmo perto da meia-noite", () => {
+    const tarde = edital({ prazo: "2026-10-24T23:59:00-03:00" }); // 02h59 do dia 25 em UTC
+    const cedo = edital({ prazo: "2026-10-24T00:01:00-03:00" });
+    expect(diaDoPrazo(tarde)).toBe("2026-10-24");
+    expect(diaDoPrazo(cedo)).toBe("2026-10-24");
+    const dia = { prazoDe: "2026-10-24", prazoAte: "2026-10-24" };
+    expect(filtrar([tarde, cedo], { ...FILTRO_INICIAL, ...dia })).toHaveLength(2);
   });
 
   it("busca sem se importar com acento, caixa ou ordem das palavras", () => {
-    const busca = (texto: string) => filtrar(todos, { ...FILTRO_INICIAL, busca: texto }, AGORA);
+    const busca = (texto: string) => filtrar(todos, { ...FILTRO_INICIAL, busca: texto });
     expect(busca("PAVIMENTACAO")).toEqual([pista]);
     expect(busca("campinas escola")).toEqual([escola]); // todas as palavras, em qualquer campo
     expect(busca("escola uberaba")).toEqual([]);
@@ -218,25 +284,47 @@ describe("filtrar e ordenar", () => {
     expect(original).toEqual([pista, escola]);
   });
 
-  it("filtra por faixa de prazo (mínimo e máximo, inclusive)", () => {
-    const f = (prazoMin: number | null, prazoMax: number | null) =>
-      filtrar(todos, { ...FILTRO_INICIAL, prazoMin, prazoMax, incluirEmParte: true }, AGORA);
-    expect(f(null, 3)).toEqual([escola]); // escola vence em 2 dias
-    expect(f(4, 7)).toEqual([parcial]); // 5 dias
-    expect(f(8, null)).toEqual([pista]); // 12 dias
-    expect(f(2, 2)).toEqual([escola]); // limites inclusivos
-    expect(f(13, null)).toEqual([]);
-  });
-
   it("filtra por cidade, por palavra do perfil e por registro de preços", () => {
     const srp = edital({ registro_de_precos: true, termos: ["pavimentação"], municipio: "Uberaba", uf: "MG" });
     const lista = [escola, pista, srp];
-    expect(filtrar(lista, { ...FILTRO_INICIAL, cidade: "Uberaba / MG" }, AGORA)).toEqual([pista, srp].sort(
-      (a, b) => Date.parse(a.prazo) - Date.parse(b.prazo) || a.id.localeCompare(b.id),
-    ));
-    expect(filtrar(lista, { ...FILTRO_INICIAL, termo: "pavimentação" }, AGORA)).toEqual([srp]);
-    expect(filtrar(lista, { ...FILTRO_INICIAL, registro: true }, AGORA)).toEqual([srp]);
-    expect(filtrar(lista, { ...FILTRO_INICIAL, termo: "inexistente" }, AGORA)).toEqual([]);
+    const porPrazo = (a: Edital, b: Edital) => Date.parse(a.prazo) - Date.parse(b.prazo) || a.id.localeCompare(b.id);
+    expect(filtrar(lista, { ...FILTRO_INICIAL, cidade: "Uberaba / MG" })).toEqual([pista, srp].sort(porPrazo));
+    expect(filtrar(lista, { ...FILTRO_INICIAL, termo: "pavimentação" })).toEqual([srp]);
+    expect(filtrar(lista, { ...FILTRO_INICIAL, registro: true })).toEqual([srp]);
+    expect(filtrar(lista, { ...FILTRO_INICIAL, termo: "inexistente" })).toEqual([]);
+  });
+});
+
+describe("datas do prazo", () => {
+  const hoje = "2026-10-21";
+
+  it("cada faixa do gráfico vira datas a partir de hoje", () => {
+    const [ate3, de4a7, de8a15, de16] = FAIXAS_PRAZO;
+    expect(intervaloDaFaixa(ate3, hoje)).toEqual({ de: "", ate: "2026-10-24" });
+    expect(intervaloDaFaixa(de4a7, hoje)).toEqual({ de: "2026-10-25", ate: "2026-10-28" });
+    expect(intervaloDaFaixa(de8a15, hoje)).toEqual({ de: "2026-10-29", ate: "2026-11-05" });
+    expect(intervaloDaFaixa(de16, hoje)).toEqual({ de: "2026-11-06", ate: "" });
+  });
+
+  it("as faixas, vistas como datas, cobrem todos os dias sem repetir nenhum", () => {
+    const editais = Array.from({ length: 31 }, (_, i) => edital({ prazo: emDias(i) }));
+    const porFaixa = FAIXAS_PRAZO.map((faixa) => {
+      const { de, ate } = intervaloDaFaixa(faixa, hoje);
+      return filtrar(editais, { ...FILTRO_INICIAL, prazoDe: de, prazoAte: ate });
+    });
+    expect(porFaixa.reduce((soma, lista) => soma + lista.length, 0)).toBe(31);
+    // e dão o mesmo número que as barras do gráfico
+    expect(porFaixa.map((l) => l.length)).toEqual(faixasPrazo(editais, AGORA).map((l) => l.n));
+  });
+
+  it("'até N dias' vai do começo até hoje + N", () => {
+    expect(atePrazoEmDias(hoje, 7)).toEqual({ de: "", ate: "2026-10-28" });
+  });
+
+  it("o calendário só oferece dias que existem", () => {
+    expect(intervaloDisponivel([])).toBeNull();
+    const lista = [edital({ prazo: emDias(9) }), edital({ prazo: emDias(2) }), edital({ prazo: emDias(30) })];
+    expect(intervaloDisponivel(lista)).toEqual({ min: "2026-10-23", max: "2026-11-20" });
   });
 });
 
@@ -253,8 +341,8 @@ describe("etiquetas dos filtros ativos", () => {
       uf: "SP",
       cidade: "Campinas / SP",
       termo: "obra",
-      prazoMin: 4,
-      prazoMax: 7,
+      prazoDe: "2026-10-25",
+      prazoAte: "2026-10-28",
       faixa: "1a5mi",
       registro: true,
       incluirEmParte: true,
@@ -264,22 +352,31 @@ describe("etiquetas dos filtros ativos", () => {
       "Estado: SP",
       "Cidade: Campinas / SP",
       "Palavra: obra",
-      "Prazo de 4 a 7 dias",
+      "Prazo de 25/10 a 28/10",
       "Valor: R$ 1 a 5 mi",
       "Registro de preços",
       "Incluindo “combina em parte”",
     ]);
   });
 
-  it("descreve prazos sem um dos limites", () => {
-    expect(filtrosAtivos({ ...FILTRO_INICIAL, prazoMax: 7 })[0]?.texto).toBe("Prazo em até 7 dias");
-    expect(filtrosAtivos({ ...FILTRO_INICIAL, prazoMin: 16 })[0]?.texto).toBe("Prazo a partir de 16 dias");
+  it("descreve prazos de um lado só e de um dia só", () => {
+    const texto = (prazoDe: string, prazoAte: string) => filtrosAtivos({ ...FILTRO_INICIAL, prazoDe, prazoAte })[0]?.texto;
+    expect(texto("", "2026-10-28")).toBe("Prazo até 28/10");
+    expect(texto("2026-11-06", "")).toBe("Prazo a partir de 06/11");
+    expect(texto("2026-10-28", "2026-10-28")).toBe("Prazo em 28/10");
     expect(filtrosAtivos({ ...FILTRO_INICIAL, faixa: SEM_VALOR })[0]?.texto).toBe("Valor não informado");
   });
 
   it("semFiltro tira só a escolha pedida", () => {
-    const f = { ...FILTRO_INICIAL, uf: "SP", prazoMin: 4, prazoMax: 7, registro: true, ordem: "nota" as const };
-    expect(semFiltro(f, "prazo")).toEqual({ ...f, prazoMin: null, prazoMax: null });
+    const f = {
+      ...FILTRO_INICIAL,
+      uf: "SP",
+      prazoDe: "2026-10-25",
+      prazoAte: "2026-10-28",
+      registro: true,
+      ordem: "nota" as const,
+    };
+    expect(semFiltro(f, "prazo")).toEqual({ ...f, prazoDe: "", prazoAte: "" });
     expect(semFiltro(f, "uf")).toEqual({ ...f, uf: "" });
     expect(semFiltro(f, "registro")).toEqual({ ...f, registro: false });
   });

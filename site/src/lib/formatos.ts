@@ -55,9 +55,13 @@ const PRONOMES_COLADOS = new Set("se lhe lhes me te nos vos lo la los las".split
 /** Siglas conhecidas que devem continuar em maiúsculas (as sem vogal, como "PRC" ou "MG", já são siglas). */
 const SIGLAS = new Set(
   (
-    "ubs upa cras creas caps cei cmei emei emef cbuq bdi nbr abnt srp pncp cnpj cpf ltda epp ete eta epi art rrt crea cau " +
-    "saae sabesp copasa sanepar cemig der dnit tjmg tjsp tjrj trf trt ufmg ufpr usp unesp unicamp ifsp ifmg ifpr " +
-    "fiocruz sus ses sms pmf led pvc pead pcmso ltcat embrapa sesc senai senac sebrae incra ibama utfpr ufrj uff ufv"
+    "ubs upa cras creas caps cei cmei emei emef cbuq bdi nbr abnt srp pncp cnpj cpf ltda epp ete " +
+    "eta epi art rrt crea cau saae sabesp copasa sanepar cemig der dnit tjmg tjsp tjrj trf trt " +
+    "ufmg ufpr usp unesp unicamp ifsp ifmg ifpr fiocruz sus ses sms pmf led pvc pead pcmso ltcat " +
+    "embrapa sesc senai senac sebrae incra ibama utfpr ufrj uff ufv fnde pac avcb ee cep emeb " +
+    "uenp fnhis cefet cemei usf icb cer cpi sam cac utm saa mdic mesp deadm diap dehis decs " +
+    "deart fad sesa semop repi iftm dga secod pirf tre copom saaeb feq baep cope femib cejusc " +
+    "fema cro ufjf sesmg sema seduc sesp"
   ).split(" "),
 );
 
@@ -94,43 +98,148 @@ const ACENTOS: Record<string, string> = {
   superintendencia: "superintendência",
   servico: "serviço",
   servicos: "serviços",
+  estancia: "estância",
+  turistica: "turística",
+  parana: "paraná",
+  sao: "são",
+  jose: "josé",
+  joao: "joão",
+  conceicao: "conceição",
+  goias: "goiás",
 };
 
 const SEM_VOGAL = /^[^aeiouáéíóúâêôãõ]+$/i;
 const ROMANO = /^[IVX]{1,4}$/;
+/** "DR.", "AV." e parecidos: abreviação com inicial maiúscula, não sigla. */
+const ABREVIACOES = new Set("dr dra sr sra av prof profa eng".split(" "));
 
-/** O texto está quase todo em maiúsculas (como muitos objetos e órgãos do PNCP)? */
+interface Palavra {
+  texto: string;
+  inicio: number;
+  /** Tem letra e nenhuma minúscula. */
+  maiuscula: boolean;
+  /** Só número: não interrompe um trecho em maiúsculas. */
+  neutra: boolean;
+}
+
+function palavrasDe(texto: string): Palavra[] {
+  return [...texto.matchAll(/[\p{L}\p{N}]+/gu)].map((m) => {
+    const p = m[0];
+    const temLetra = /\p{L}/u.test(p);
+    return { texto: p, inicio: m.index ?? 0, maiuscula: temLetra && p === p.toUpperCase(), neutra: !temLetra };
+  });
+}
+
+const contaLetras = (p: string) => (p.match(/\p{L}/gu) ?? []).length;
+
+/**
+ * Trechos de palavras seguidas só em maiúsculas (número no meio não interrompe), como [primeira, última].
+ * Só conta como "gritando" quando é longo: 3 palavras e 12 letras. Sigla solta ("UBS", "CRAS") não é.
+ */
+function trechosGritando(palavras: Palavra[]): Array<[number, number]> {
+  const trechos: Array<[number, number]> = [];
+  let i = 0;
+  while (i < palavras.length) {
+    if (!palavras[i]!.maiuscula) {
+      i += 1;
+      continue;
+    }
+    let j = i;
+    let ultima = i;
+    let maiusculas = 0;
+    let letras = 0;
+    while (j < palavras.length && (palavras[j]!.maiuscula || palavras[j]!.neutra)) {
+      if (palavras[j]!.maiuscula) {
+        maiusculas += 1;
+        letras += contaLetras(palavras[j]!.texto);
+        ultima = j;
+      }
+      j += 1;
+    }
+    if (maiusculas >= 3 && letras >= 12) trechos.push([i, ultima]);
+    i = j;
+  }
+  return trechos;
+}
+
+/** Tem um trecho longo em MAIÚSCULAS (como muitos objetos e órgãos do PNCP)? */
 export function estaGritando(texto: string): boolean {
-  const letras = texto.match(/\p{L}/gu) ?? [];
-  if (letras.length < 12) return false;
-  const maiusculas = letras.filter((c) => c !== c.toLowerCase()).length;
-  return maiusculas / letras.length >= 0.7;
+  return trechosGritando(palavrasDe(texto)).length > 0;
+}
+
+function suavizaPalavra(p: Palavra, primeiraDoTrecho: boolean, texto: string, restauraAcentos: boolean): string {
+  const palavra = p.texto;
+  if (/\d/.test(palavra)) return palavra;
+  const baixa = palavra.toLowerCase();
+  const base = dobra(palavra);
+  if (palavra.length === 1) {
+    return ["a", "e", "o", "à"].includes(baixa) && !primeiraDoTrecho ? baixa : palavra.toUpperCase();
+  }
+  if (texto[p.inicio - 1] === "-" && PRONOMES_COLADOS.has(baixa)) return baixa; // "refere-se", "dê-lhe"
+  const sigla =
+    SIGLAS.has(base) || ROMANO.test(palavra) || (palavra.length <= 5 && SEM_VOGAL.test(palavra) && !ABREVIACOES.has(base));
+  if (sigla) return palavra.toUpperCase();
+  if (!primeiraDoTrecho && PALAVRAS_PEQUENAS.has(baixa)) return baixa;
+  const final = restauraAcentos ? (ACENTOS[base] ?? baixa) : baixa;
+  return final.charAt(0).toUpperCase() + final.slice(1);
 }
 
 /**
- * Só na tela: texto em CAIXA ALTA vira "Caixa Alta Normal" (preposições em minúsculas, siglas mantidas).
- * Texto que já está em caixa normal passa sem mudança. O texto original continua no PNCP.
+ * Só na tela: o trecho em CAIXA ALTA vira "Caixa Alta Normal" (preposições em minúsculas, siglas mantidas).
+ * O resto do texto não muda, e texto já em caixa normal passa direto. O original continua no PNCP.
  */
 export function suavizaCaixa(texto: string, restauraAcentos = false): string {
-  if (!estaGritando(texto)) return texto;
-  let primeira = true;
-  return texto.replace(/[\p{L}\p{N}]+/gu, (palavra, posicao: number) => {
-    const ehPrimeira = primeira;
-    primeira = false;
-    if (/\d/.test(palavra)) return palavra;
-    const baixa = palavra.toLowerCase();
-    const base = dobra(palavra);
-    if (palavra.length === 1) {
-      return ["a", "e", "o", "à"].includes(baixa) && !ehPrimeira ? baixa : palavra.toUpperCase();
+  const palavras = palavrasDe(texto);
+  const trechos = trechosGritando(palavras);
+  if (trechos.length === 0) return texto;
+
+  const trocas = new Map<number, string>();
+  for (const [de, ate] of trechos) {
+    for (let k = de; k <= ate; k += 1) {
+      trocas.set(k, suavizaPalavra(palavras[k]!, k === de, texto, restauraAcentos));
     }
-    if (texto[posicao - 1] === "-" && PRONOMES_COLADOS.has(baixa)) return baixa; // "refere-se", "dê-lhe"
-    if (SIGLAS.has(base) || ROMANO.test(palavra) || (palavra.length <= 5 && SEM_VOGAL.test(palavra))) {
-      return palavra.toUpperCase();
-    }
-    if (!ehPrimeira && PALAVRAS_PEQUENAS.has(baixa)) return baixa;
-    const final = restauraAcentos ? (ACENTOS[base] ?? baixa) : baixa;
-    return final.charAt(0).toUpperCase() + final.slice(1);
+  }
+  return aplicaTrocas(texto, palavras, trocas);
+}
+
+/** Troca só as palavras indicadas; o que está entre elas (espaços, pontuação) fica como estava. */
+function aplicaTrocas(texto: string, palavras: Palavra[], trocas: Map<number, string>): string {
+  let saida = "";
+  let cursor = 0;
+  palavras.forEach((p, k) => {
+    const novo = trocas.get(k);
+    if (novo === undefined) return;
+    saida += texto.slice(cursor, p.inicio) + novo;
+    cursor = p.inicio + p.texto.length;
   });
+  return saida + texto.slice(cursor);
+}
+
+/**
+ * Onde o nome do órgão cita a cidade, usa a grafia da cidade como o próprio edital a traz. O nome do órgão
+ * chega sem acento ("Município de Ibirite") e a cidade do mesmo edital vem certa ("Ibirité"). Só entram
+ * palavras que diferem no acento ou na caixa, então o sentido não muda.
+ */
+export function acertaCidade(orgao: string, municipio: string | null): string {
+  const cidade = palavrasDe(municipio ?? "").map((p) => p.texto);
+  const palavras = palavrasDe(orgao);
+  const alvo = cidade.map(dobra);
+  const trocas = new Map<number, string>();
+  let i = 0;
+  while (cidade.length > 0 && i + cidade.length <= palavras.length) {
+    if (alvo.every((a, k) => dobra(palavras[i + k]!.texto) === a)) {
+      cidade.forEach((c, k) => trocas.set(i + k, c));
+      i += cidade.length;
+    } else {
+      i += 1;
+    }
+  }
+  return trocas.size > 0 ? aplicaTrocas(orgao, palavras, trocas) : orgao;
+}
+
+/** O órgão como se lê na tela: caixa normal, acentos das palavras comuns e da cidade. */
+export function nomeDoOrgao(orgao: string, municipio: string | null): string {
+  return acertaCidade(suavizaCaixa(orgao, true), municipio);
 }
 
 /** "Rio de Janeiro / RJ", "SP" ou "". */

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { Animacao } from "./animacao";
 import { BarraTopo } from "./components/BarraTopo";
 import { Esqueleto } from "./components/Esqueleto";
 import { FaixaRobo } from "./components/FaixaRobo";
@@ -108,26 +109,35 @@ export function App() {
   }, []);
 
   return (
-    <div className="pagina">
-      <a className="pular" href="#editais">
-        Pular para a lista de editais
-      </a>
-      <BarraTopo robo={painel?.robo ?? null} agora={agora} tema={tema} aoAlternarTema={alternar} />
-      <main>
-        {estado.tipo === "carregando" && <Esqueleto />}
-        {estado.tipo === "erro" && (
-          <Erro mensagem={estado.mensagem} versaoNova={estado.versaoNova} aoTentar={tentarDeNovo} />
-        )}
-        {painel && (
-          <>
-            <Hero painel={painel} resumo={resumo} mediana={mediana} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
-            <FaixaRobo robo={painel.robo} geradoEm={painel.gerado_em} agora={agora} />
-            <Panorama editais={fortes} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
-            <Lista editais={abertos} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
-          </>
-        )}
-      </main>
-      <Rodape perfil={painel?.perfil ?? null} />
-    </div>
+    <Animacao>
+      <div className="pagina">
+        <a className="pular" href="#editais">
+          Pular para a lista de editais
+        </a>
+        <BarraTopo robo={painel?.robo ?? null} agora={agora} tema={tema} aoAlternarTema={alternar} />
+        <main>
+          {estado.tipo === "carregando" && <Esqueleto />}
+          {estado.tipo === "erro" && (
+            <Erro mensagem={estado.mensagem} versaoNova={estado.versaoNova} aoTentar={tentarDeNovo} />
+          )}
+          {painel && (
+            <>
+              <Hero
+                painel={painel}
+                resumo={resumo}
+                mediana={mediana}
+                agora={agora}
+                filtro={filtro}
+                aoMudar={mudaFiltro}
+              />
+              <FaixaRobo robo={painel.robo} geradoEm={painel.gerado_em} agora={agora} />
+              <Panorama editais={fortes} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
+              <Lista editais={abertos} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
+            </>
+          )}
+        </main>
+        <Rodape perfil={painel?.perfil ?? null} />
+      </div>
+    </Animacao>
   );
 }

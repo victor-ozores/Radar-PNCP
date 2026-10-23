@@ -534,7 +534,7 @@ section[id] {
 
 .numeros {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: var(--e3);
   align-content: start;
 }
@@ -644,11 +644,6 @@ section[id] {
   background: var(--aviso);
 }
 
-.robo-historico {
-  display: grid;
-  gap: var(--e2);
-}
-
 .execucoes {
   display: flex;
   flex-wrap: wrap;
@@ -682,11 +677,6 @@ section[id] {
   background: var(--erro);
 }
 
-.robo-detalhe {
-  color: var(--tinta-3);
-  font-size: 0.8rem;
-}
-
 /* ---------- panorama */
 
 .grade {
@@ -694,13 +684,9 @@ section[id] {
   gap: var(--e3);
 }
 
-/* celular: as colunas somem e os cartões seguem a ordem do número */
+/* celular: as colunas somem e os cartões seguem a ordem dada em cada um (style order) */
 .coluna {
   display: contents;
-}
-
-.coluna > .cartao {
-  order: var(--ordem, 0);
 }
 
 .cartao {
@@ -936,13 +922,6 @@ section[id] {
   border-color: var(--acento);
 }
 
-.selecoes {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--e3);
-  align-items: end;
-}
-
 .campo {
   display: grid;
   gap: 6px;
@@ -960,7 +939,6 @@ section[id] {
 
 .interruptor {
   display: flex;
-  grid-column: 1 / -1;
   align-items: center;
   gap: var(--e3);
   min-height: 40px;
@@ -1049,7 +1027,7 @@ section[id] {
 
 .edital {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--e3) var(--e4);
   padding: var(--e4);
   background: var(--superficie);
@@ -1063,20 +1041,20 @@ section[id] {
   border-color: var(--borda-forte);
 }
 
+/* celular: uma faixa com "23 OUT 07h59 amanhã"; a partir de 720 px vira o quadradinho de calendário */
 .prazo-bloco {
-  display: grid;
-  align-content: start;
-  justify-items: center;
-  gap: 2px;
-  padding: var(--e2) 4px;
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--e2);
+  width: fit-content;
+  padding: 6px var(--e3);
   background: var(--superficie-2);
   border-radius: var(--r);
-  align-self: start;
 }
 
 .prazo-dia {
-  font-size: 1.6rem;
+  font-size: 1.25rem;
   font-weight: 750;
   line-height: 1;
   letter-spacing: -0.03em;
@@ -1090,7 +1068,7 @@ section[id] {
 }
 
 .prazo-hora {
-  margin-top: 4px;
+  margin-top: 0;
   font-size: 0.75rem;
   font-weight: 600;
 }
@@ -1155,6 +1133,20 @@ section[id] {
 .valor-edital {
   color: var(--tinta);
   font-weight: 650;
+}
+
+.edital-repetido {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--tinta-2);
+  font-size: 0.875rem;
+}
+
+.edital-repetido .icone {
+  flex: none;
+  margin-top: 3px;
+  color: var(--tinta-3);
 }
 
 .edital .botao-link {
@@ -1298,24 +1290,17 @@ section[id] {
   font-size: 1.1rem;
 }
 
-.rodape-grade {
+.avisos {
   display: grid;
-  gap: var(--e4);
-}
-
-.rodape h3 {
-  margin-bottom: var(--e1);
-  font-size: 0.95rem;
-}
-
-.rodape p {
+  gap: var(--e2);
+  padding-left: 18px;
   color: var(--tinta-2);
   font-size: 0.9rem;
+  list-style: disc;
 }
 
-.rodape-nota {
-  color: var(--tinta-3);
-  font-size: 0.8rem;
+.avisos strong {
+  color: var(--tinta);
 }
 
 /* ---------- telas maiores */
@@ -1338,7 +1323,7 @@ section[id] {
   }
 
   .numeros {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .grade {
@@ -1353,10 +1338,6 @@ section[id] {
     align-content: start;
   }
 
-  .coluna > .cartao {
-    order: 0;
-  }
-
   .filtros {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1366,19 +1347,6 @@ section[id] {
     grid-column: 1 / -1;
   }
 
-  .selecoes {
-    grid-column: 1 / -1;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.6fr);
-  }
-
-  .interruptor {
-    grid-column: auto;
-  }
-
-  .rodape-grade {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--e5);
-  }
 
   .esq-linha {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1386,6 +1354,45 @@ section[id] {
 
   .esq-linha:first-of-type {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 720px) {
+  .edital {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .prazo-dia {
+    font-size: 1.6rem;
+  }
+
+  .prazo-hora {
+    margin-top: 4px;
+  }
+
+  .prazo-bloco {
+    display: grid;
+    align-content: start;
+    justify-items: center;
+    gap: 2px;
+    width: auto;
+    padding: var(--e2) 4px;
+    text-align: center;
+    align-self: start;
+  }
+
+  .mais-filtros {
+    grid-column: 2;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .mais-filtros > summary {
+    margin-top: 22px; /* alinha com o campo "Ordenar por" ao lado */
+  }
+
+  .campo-ordem {
+    grid-column: 1;
   }
 }
 
@@ -1420,5 +1427,174 @@ section[id] {
     scroll-behavior: auto !important;
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* ---------- detalhes recolhíveis (o que é técnico fica fechado) */
+
+.detalhes {
+  color: var(--tinta-2);
+  font-size: 0.85rem;
+}
+
+.detalhes summary,
+.mais-filtros summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  color: var(--acento-tinta);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.detalhes summary::-webkit-details-marker,
+.mais-filtros summary::-webkit-details-marker {
+  display: none;
+}
+
+.detalhes summary::before,
+.mais-filtros summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s;
+}
+
+.detalhes[open] summary::before,
+.mais-filtros[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.detalhes > :not(summary) {
+  margin-top: var(--e2);
+}
+
+.detalhes ul {
+  display: grid;
+  gap: var(--e2);
+  padding-left: 18px;
+  list-style: disc;
+}
+
+/* ---------- como usar */
+
+.passos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e2) var(--e4);
+  color: var(--tinta-2);
+  font-size: 0.85rem;
+  counter-reset: passo;
+}
+
+.passos li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e2);
+  counter-increment: passo;
+}
+
+.passos li::before {
+  content: counter(passo);
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--acento-suave-tinta);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--acento-suave);
+  border-radius: 50%;
+}
+
+/* ---------- filtro de datas e "mais filtros" */
+
+.periodo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--e2);
+  margin-top: var(--e2);
+}
+
+.campo-data {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--tinta-2);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.campo-data input {
+  width: 100%;
+  min-height: 42px;
+  padding: 6px 10px;
+  color: var(--tinta);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  background: var(--fundo);
+  border: 1px solid var(--borda-forte);
+  border-radius: 10px;
+}
+
+.campo-data input:focus-visible {
+  outline-offset: 0;
+  border-color: var(--acento);
+}
+
+.mais-filtros {
+  padding-top: var(--e1);
+  border-top: 1px solid var(--borda);
+}
+
+.mais-filtros-corpo {
+  display: grid;
+  gap: var(--e3);
+  margin-top: var(--e2);
+}
+
+@media (min-width: 720px) {
+  .mais-filtros-corpo {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: end;
+  }
+}
+
+.contador-filtros {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  color: var(--acento-suave-tinta);
+  font-size: 0.75rem;
+  background: var(--acento-suave);
+  border-radius: 999px;
+}
+
+.botao-icone-miolo {
+  display: grid;
+  place-items: center;
+}
+
+/* ponto do robô "respira" (só some a animação se a pessoa pediu menos movimento) */
+@media (prefers-reduced-motion: no-preference) {
+  .status-ok .status-ponto {
+    animation: respira 2.4s ease-in-out infinite;
+  }
+
+  @keyframes respira {
+    50% {
+      box-shadow: 0 0 0 5px color-mix(in srgb, var(--ok) 10%, transparent);
+    }
   }
 }

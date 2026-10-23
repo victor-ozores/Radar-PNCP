@@ -37,6 +37,17 @@ export function diasAte(alvo: string | Date, agora: Date): number {
   return Math.round((Date.UTC(a, m - 1, d) - Date.UTC(a0, m0 - 1, d0)) / MS_DIA);
 }
 
+/** Soma `dias` a um dia `AAAA-MM-DD` (conta de calendário, sem depender do fuso de quem abre a página). */
+export function somaDias(dia: string, dias: number): string {
+  const [a, m, d] = dia.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(a, m - 1, d + dias)).toISOString().slice(0, 10);
+}
+
+/** `2026-10-28` -> "28/10". */
+export function diaCurto(dia: string): string {
+  return `${dia.slice(8, 10)}/${dia.slice(5, 7)}`;
+}
+
 export function dataCurta(iso: string | Date): string {
   return DIA_MES.format(paraData(iso));
 }

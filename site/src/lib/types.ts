@@ -2,6 +2,16 @@
 
 export type Combina = "muito" | "combina" | "parcial";
 
+/** Outro registro do mesmo edital no PNCP (publicado duas vezes: mesmo órgão, texto, valor e prazo). */
+export interface Repetido {
+  id: string;
+  /** Número no órgão ("34/2026"); `null` quando o órgão não preencheu um que preste. */
+  numero: string | null;
+  link: string | null;
+  /** Dia em que foi publicado no PNCP (`AAAA-MM-DD`). */
+  publicado: string | null;
+}
+
 export interface Edital {
   id: string;
   objeto: string;
@@ -9,6 +19,8 @@ export interface Edital {
   uf: string | null;
   municipio: string | null;
   modalidade: string;
+  /** Número do edital no órgão ("12/2026"); `null` quando o órgão não preencheu um que preste. */
+  numero: string | null;
   valor: number | null;
   registro_de_precos: boolean;
   /** Quando as propostas começam a ser recebidas (ISO com fuso -03:00). */
@@ -19,6 +31,8 @@ export interface Edital {
   combina: Combina;
   termos: string[];
   link: string | null;
+  /** Os outros registros deste mesmo edital (o publicado por último é o que vem acima); vazio se só há um. */
+  repetidos: Repetido[];
 }
 
 export interface ExecucaoResumo {
@@ -56,7 +70,8 @@ export interface Painel {
   gerado_em: string;
   janela_dias: number;
   perfil: Perfil;
-  totais: { abertos: number; combinam: number };
+  /** `combinam` conta cada edital uma vez; `repetidos` é quantos registros ficaram escondidos atrás de outro. */
+  totais: { abertos: number; combinam: number; repetidos?: number };
   robo: Robo;
   editais: Edital[];
 }

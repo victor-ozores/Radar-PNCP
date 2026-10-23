@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { TAMANHO_PAGINA } from "../config";
 import { formataInteiro, plural } from "../lib/formatos";
-import { filtrar, filtroLimpo, filtrosAtivos, type Filtro } from "../lib/painel";
+import { filtrar, filtroLimpo, filtrosAtivos, intervaloDisponivel, type Filtro } from "../lib/painel";
 import type { Edital } from "../lib/types";
 import { CartaoEdital } from "./CartaoEdital";
 import { Filtros } from "./Filtros";
@@ -27,7 +27,8 @@ export function Lista({ editais, agora, filtro, aoMudar }: Props) {
     () => editais.filter((e) => e.combina !== "parcial" && e.registro_de_precos).length,
     [editais],
   );
-  const achados = useMemo(() => filtrar(editais, filtro, agora), [editais, filtro, agora]);
+  const datas = useMemo(() => intervaloDisponivel(editais), [editais]);
+  const achados = useMemo(() => filtrar(editais, filtro), [editais, filtro]);
 
   // mudou o filtro: volta a mostrar só a primeira página
   useEffect(() => setVisiveis(TAMANHO_PAGINA), [filtro]);
@@ -46,12 +47,12 @@ export function Lista({ editais, agora, filtro, aoMudar }: Props) {
         </p>
       </div>
 
-      <Filtros filtro={filtro} aoMudar={aoMudar} ufs={ufs} emParte={emParte} registro={registro} />
+      <Filtros filtro={filtro} aoMudar={aoMudar} agora={agora} ufs={ufs} datas={datas} emParte={emParte} registro={registro} />
 
       {achados.length > 0 ? (
         <ul className="editais">
-          {achados.slice(0, visiveis).map((e) => (
-            <CartaoEdital key={e.id} edital={e} agora={agora} />
+          {achados.slice(0, visiveis).map((e, i) => (
+            <CartaoEdital key={e.id} edital={e} agora={agora} posicao={i % TAMANHO_PAGINA} />
           ))}
         </ul>
       ) : (

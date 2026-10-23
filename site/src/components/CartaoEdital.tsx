@@ -1,6 +1,9 @@
-import { formataValor, limpaObjeto, localidade, suavizaCaixa, valorConfiavel } from "../lib/formatos";
+import { Fragment } from "react";
+
+import { SUAVE, m } from "../animacao";
+import { formataValor, limpaObjeto, localidade, nomeDoOrgao, suavizaCaixa, valorConfiavel } from "../lib/formatos";
 import { dataEHora, diaDoMes, diasAte, emQuantosDias, horaCurta, mesCurto, dataCurta } from "../lib/tempo";
-import type { Combina, Edital } from "../lib/types";
+import type { Combina, Edital, Repetido } from "../lib/types";
 import { Icone } from "./Icone";
 
 const SELO: Record<Combina, string> = {
@@ -8,6 +11,9 @@ const SELO: Record<Combina, string> = {
   combina: "Combina",
   parcial: "Combina em parte",
 };
+
+/** "nº 34/2026", ou "outro registro" quando o órgão não preencheu um número que preste. */
+const rotuloDoRepetido = (r: Repetido) => (r.numero ? `nº ${r.numero}` : "outro registro");
 
 type Urgencia = "urgente" | "atencao" | "calmo";
 
@@ -17,7 +23,8 @@ function urgenciaDe(dias: number): Urgencia {
   return "calmo";
 }
 
-export function CartaoEdital({ edital: e, agora }: { edital: Edital; agora: Date }) {
+/** `posicao`: lugar do cartão na página atual da lista; os primeiros entram em sequência, os outros juntos. */
+export function CartaoEdital({ edital: e, agora, posicao }: { edital: Edital; agora: Date; posicao: number }) {
   const dias = diasAte(e.prazo, agora);
   const urgencia = urgenciaDe(dias);
   const abreDepois = e.abertura !== null && Date.parse(e.abertura) > agora.getTime();
@@ -25,7 +32,12 @@ export function CartaoEdital({ edital: e, agora }: { edital: Edital; agora: Date
   const onde = localidade(e.municipio, e.uf);
 
   return (
-    <li className="edital">
+    <m.li
+      className="edital"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: SUAVE, delay: Math.min(posicao, 8) * 0.035 }}
+    >
       <div className={`prazo-bloco prazo-${urgencia}`}>
         <span className="so-leitor">
           Propostas até {dataEHora(e.prazo, agora)} ({emQuantosDias(e.prazo, agora)}).
@@ -58,7 +70,7 @@ export function CartaoEdital({ edital: e, agora }: { edital: Edital; agora: Date
         <p className="edital-meta">
           <span className="meta-item">
             <Icone nome="predio" tam={16} />
-            {suavizaCaixa(e.orgao, true)}
+            {nomeDoOrgao(e.orgao, e.municipio)}
           </span>
           {onde && (
             <span className="meta-item">
@@ -76,8 +88,31 @@ export function CartaoEdital({ edital: e, agora }: { edital: Edital; agora: Date
           <span className="meta-item">
             <Icone nome="documento" tam={16} />
             {e.modalidade}
+            {e.numero && ` nº ${e.numero}`}
           </span>
         </p>
+
+        {e.repetidos.length > 0 && (
+          <p className="edital-repetido">
+            <Icone nome="copia" tam={16} />
+            <span>
+              Também publicado como{" "}
+              {e.repetidos.map((r, i) => (
+                <Fragment key={r.id}>
+                  {i > 0 && ", "}
+                  {r.link ? (
+                    <a href={r.link} target="_blank" rel="noopener noreferrer">
+                      {rotuloDoRepetido(r)}
+                      <span className="so-leitor"> (abre em outra aba)</span>
+                    </a>
+                  ) : (
+                    rotuloDoRepetido(r)
+                  )}
+                </Fragment>
+              ))}
+            </span>
+          </p>
+        )}
 
         {e.termos.length > 0 && (
           <ul className="etiquetas" aria-label="Palavras do perfil encontradas">
@@ -97,6 +132,6 @@ export function CartaoEdital({ edital: e, agora }: { edital: Edital; agora: Date
           <Icone nome="externo" tam={16} />
         </a>
       )}
-    </li>
+    </m.li>
   );
 }

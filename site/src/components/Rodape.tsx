@@ -5,53 +5,60 @@ import type { Perfil } from "../lib/types";
 export function Rodape({ perfil }: { perfil: Perfil | null }) {
   return (
     <footer className="rodape" id="sobre" aria-labelledby="sobre-titulo">
-      <h2 id="sobre-titulo">Como ler esta página</h2>
-      <div className="rodape-grade">
-        <div>
-          <h3>Perfil de demonstração</h3>
-          <p>
-            Os critérios são de uma empresa fictícia de engenharia civil e manutenção predial
-            {perfil && (
-              <>
-                : {perfil.ufs.join(", ")}; {perfil.modalidades.join(", ")}
-                {perfil.valor_min !== null && perfil.valor_max !== null && (
-                  <>
-                    ; valores de {formataValor(perfil.valor_min)} a {formataValor(perfil.valor_max)}
-                  </>
-                )}
-              </>
-            )}
-            . Para uma empresa de verdade, o perfil é ajustado em um arquivo de configuração.
-          </p>
-        </div>
-        <div>
-          <h3>Confira sempre o edital no PNCP</h3>
-          <p>
-            O robô lê os dados públicos uma vez por dia e pode errar: o prazo pode ter mudado, o edital pode ter
-            sido suspenso e o filtro por palavras-chave não entende o contexto como uma pessoa entende.
-          </p>
-        </div>
-        <div>
-          <h3>“Combina” é uma estimativa</h3>
-          <p>
-            Vem de palavras-chave encontradas no objeto do edital (como obra, reforma ou pavimentação), do
-            estado, da modalidade e do valor. Não é uma recomendação.
-          </p>
-        </div>
-      </div>
-      <p className="rodape-nota">
-        Os números consideram só os editais que combinam e continuam abertos agora. Valores abaixo de{" "}
-        {formataValor(VALOR_MINIMO_CONFIAVEL)} são tratados como não informados (costumam ser preenchimento
-        simbólico). Textos em caixa alta foram ajustados só na tela. Fonte:{" "}
-        <a href={PNCP_URL} target="_blank" rel="noopener noreferrer">
-          Portal Nacional de Contratações Públicas
-        </a>{" "}
-        (dados abertos). Projeto e código em{" "}
-        <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
-          GitHub
-        </a>
-        .
-      </p>
+      <h2 id="sobre-titulo">Antes de usar</h2>
+      <ul className="avisos">
+        <li>
+          <strong>Perfil de demonstração.</strong> Os critérios são de uma empresa fictícia de engenharia
+          civil e manutenção predial; numa empresa de verdade, o perfil é ajustado em um arquivo de
+          configuração.
+        </li>
+        <li>
+          <strong>Confira sempre o edital no PNCP.</strong> O robô lê os dados públicos uma vez por dia e
+          pode errar: prazo que mudou, edital suspenso ou excluído, texto que o filtro não entende.
+        </li>
+      </ul>
+
+      <details className="detalhes">
+        <summary>Como o painel é calculado</summary>
+        <ul>
+          <li>
+            “Combina” é uma estimativa feita com palavras-chave do objeto (obra, reforma, pavimentação…), o
+            estado, a modalidade e o valor. Não é uma recomendação.
+          </li>
+          {perfil && (
+            <li>
+              Perfil usado: {perfil.ufs.join(", ")}; {perfil.modalidades.join(", ")}
+              {perfil.valor_min !== null && perfil.valor_max !== null && (
+                <>
+                  ; valores de {formataValor(perfil.valor_min)} a {formataValor(perfil.valor_max)}
+                </>
+              )}
+              .
+            </li>
+          )}
+          <li>
+            Os números consideram só os editais que combinam e continuam abertos agora. Valores abaixo de{" "}
+            {formataValor(VALOR_MINIMO_CONFIAVEL)} são tratados como não informados (costumam ser preenchimento
+            simbólico).
+          </li>
+          <li>Textos em caixa alta aparecem em caixa normal só aqui; o original está no PNCP.</li>
+          <li>
+            Às vezes o órgão publica o mesmo edital duas vezes no PNCP (mesmo órgão, texto, valor e prazo).
+            Aqui ele conta uma vez, e o outro número aparece no cartão, com o link.
+          </li>
+          <li>
+            Fonte:{" "}
+            <a href={PNCP_URL} target="_blank" rel="noopener noreferrer">
+              Portal Nacional de Contratações Públicas
+            </a>{" "}
+            (dados abertos). Código em{" "}
+            <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
+              GitHub
+            </a>
+            .
+          </li>
+        </ul>
+      </details>
     </footer>
   );
 }

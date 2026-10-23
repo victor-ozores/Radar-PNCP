@@ -1,3 +1,4 @@
+import { SUAVE, m } from "../animacao";
 import { HORAS_ATE_AVISAR, REPO_URL } from "../config";
 import { haQuantoTempo, horasDesde } from "../lib/tempo";
 import type { Tema } from "../lib/tema";
@@ -23,7 +24,12 @@ export function BarraTopo({ robo, agora, tema, aoAlternarTema }: Props) {
   const velho = robo !== null && (ultimoOk === null || horasDesde(ultimoOk, agora) > HORAS_ATE_AVISAR);
 
   return (
-    <header className="barra-topo">
+    <m.header
+      className="barra-topo"
+      initial={{ opacity: 0, y: -12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, ease: SUAVE }}
+    >
       <div className="barra-interna">
         <a className="marca" href="#resumo" aria-label="Radar de Licitações PNCP, ir para o início">
           <span className="marca-icone">
@@ -55,20 +61,30 @@ export function BarraTopo({ robo, agora, tema, aoAlternarTema }: Props) {
               </span>
             </span>
           )}
-          <button
+          <m.button
             type="button"
             className="botao-icone"
             onClick={aoAlternarTema}
             aria-label={tema === "escuro" ? "Usar tema claro" : "Usar tema escuro"}
             title={tema === "escuro" ? "Tema claro" : "Tema escuro"}
+            whileTap={{ scale: 0.9 }}
           >
-            <Icone nome={tema === "escuro" ? "sol" : "lua"} tam={18} />
-          </button>
+            {/* a chave faz o ícone novo entrar girando quando o tema troca */}
+            <m.span
+              key={tema}
+              className="botao-icone-miolo"
+              initial={{ rotate: -80, opacity: 0 }}
+              animate={{ rotate: 0, opacity: 1 }}
+              transition={{ duration: 0.3, ease: SUAVE }}
+            >
+              <Icone nome={tema === "escuro" ? "sol" : "lua"} tam={18} />
+            </m.span>
+          </m.button>
           <a className="botao-icone" href={REPO_URL} target="_blank" rel="noopener noreferrer" aria-label="Código no GitHub (abre em outra aba)" title="Código no GitHub">
             <Icone nome="github" tam={18} />
           </a>
         </div>
       </div>
-    </header>
+    </m.header>
   );
 }

@@ -3,11 +3,15 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
-import { edital, painel } from "./testes/modelos";
+import { diaBR, diaCurto, somaDias } from "./lib/tempo";
 import type { Edital, Painel } from "./lib/types";
+import { edital, painel } from "./testes/modelos";
 
 /** O App usa a hora de verdade; por isso os prazos dos testes são montados a partir dela. */
 const emHoras = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
+
+/** O dia de Brasília daqui a N dias, como `AAAA-MM-DD` (o mesmo que o filtro usa). */
+const daquiA = (dias: number) => somaDias(diaBR(new Date()), dias);
 
 function resposta(corpo: unknown, status = 200): Response {
   return new Response(JSON.stringify(corpo), { status, headers: { "content-type": "application/json" } });
@@ -62,7 +66,8 @@ describe("App", () => {
     expect(screen.getByText("Carregando os editais…")).toBeTruthy();
     expect(await screen.findByText("editais abertos combinam com o perfil")).toBeTruthy();
     // 2 combinam; o "em parte" fica fora dos números e só entra na lista se a pessoa pedir
-    expect(screen.getByText("Combinam só em parte")).toBeTruthy();
+    expect(screen.getByText("Incluir os que combinam só em parte (1)")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toContain("2editais abertos combinam");
     expect(screen.getByRole("heading", { name: /Panorama dos 2 editais/ })).toBeTruthy();
     expect(cartoes()).toHaveLength(2);
   });
@@ -165,7 +170,93 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "Só os que vencem em até 7 dias" }));
     expect(screen.getByText("Vence logo")).toBeTruthy();
     expect(screen.queryByText("Vence depois")).toBeNull();
-    expect(screen.getByRole("button", { name: "Tirar filtro: Prazo em até 7 dias" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: `Tirar filtro: Prazo até ${diaCurto(daquiA(7))}` })).toBeTruthy();
+  });
+
+  it("filtra por intervalo de datas e o calendário só aceita dias que existem", async () => {
+    respondeCom(
+      resposta(
+        dados([
+          edital({ prazo: emHoras(24 * 3 + 12), objeto: "Vence no começo" }),
+          edital({ prazo: emHoras(24 * 10 + 12), objeto: "Vence no meio" }),
+          edital({ prazo: emHoras(24 * 20 + 12), objeto: "Vence no fim" }),
+        ]),
+      ),
+    );
+    render(<App />);
+    await screen.findByText("Vence no fim");
+
+    const de = screen.getByLabelText("De") as HTMLInputElement;
+    const ate = screen.getByLabelText("Até") as HTMLInputElement;
+    // do primeiro ao último dia de prazo que existe; nada fora disso
+    expect(de.min).toBe(ate.min);
+    expect(de.max).toBe(ate.max);
+    expect(de.min < de.max).toBe(true);
+
+    fireEvent.change(de, { target: { value: daquiA(8) } });
+    expect(screen.queryByText("Vence no começo")).toBeNull();
+    expect(screen.getByText("Vence no meio")).toBeTruthy();
+    expect(screen.getByText("Vence no fim")).toBeTruthy();
+    expect((screen.getByLabelText("Até") as HTMLInputElement).min).toBe(daquiA(8)); // o fim não vem antes do começo
+
+    fireEvent.change(screen.getByLabelText("Até"), { target: { value: daquiA(14) } });
+    expect(screen.queryByText("Vence no fim")).toBeNull();
+    expect(cartoes()).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: `Tirar filtro: Prazo de ${diaCurto(daquiA(8))} a ${diaCurto(daquiA(14))}` }),
+    ).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Tirar filtro: Prazo/ }));
+    expect(cartoes()).toHaveLength(3);
+    expect((screen.getByLabelText("De") as HTMLInputElement).value).toBe("");
+  });
+
+  it("a faixa do gráfico preenche as datas do filtro", async () => {
+    respondeCom(
+      resposta(
+        dados([
+          edital({ prazo: emHoras(24 * 1 + 12), objeto: "Em 1 dia" }),
+          edital({ prazo: emHoras(24 * 6 + 12), objeto: "Em 6 dias" }),
+          edital({ prazo: emHoras(24 * 25 + 12), objeto: "Em 25 dias" }),
+        ]),
+      ),
+    );
+    render(<App />);
+    await screen.findByText("Em 25 dias");
+
+    fireEvent.click(screen.getByRole("button", { name: "4 a 7 dias: 1 edital" }));
+    expect(cartoes()).toHaveLength(1);
+    expect(screen.getByText("Em 6 dias")).toBeTruthy();
+    expect((screen.getByLabelText("De") as HTMLInputElement).value).toBe(daquiA(4));
+    expect((screen.getByLabelText("Até") as HTMLInputElement).value).toBe(daquiA(7));
+    expect(screen.getByRole("button", { name: "4 a 7 dias: 1 edital" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("os filtros avançados ficam recolhidos, mas abrem sozinhos quando algum está ligado", async () => {
+    respondeCom(
+      resposta(dados([edital({ prazo: emHoras(40), registro_de_precos: true }), edital({ prazo: emHoras(60) })])),
+    );
+    render(<App />);
+    await screen.findByText("Mais filtros");
+    const detalhes = screen.getByText("Mais filtros").closest("details")!;
+    expect(detalhes.open).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: /Em registro de preços/ })); // botão do destaque
+    expect(cartoes()).toHaveLength(1);
+    expect(screen.getByText("Mais filtros").closest("details")!.open).toBe(true);
+    expect(screen.getByRole("button", { name: "Tirar filtro: Registro de preços" })).toBeTruthy();
+  });
+
+  it("o que é técnico fica em seções que abrem: detalhes do robô e como o painel é calculado", async () => {
+    respondeCom(resposta(dados([edital({ prazo: emHoras(50) })])));
+    render(<App />);
+    await screen.findByText("Robô em dia");
+    for (const titulo of ["Detalhes do robô", "Como o painel é calculado"]) {
+      const secao = screen.getByText(titulo).closest("details")!;
+      expect(secao.open).toBe(false);
+    }
+    expect(screen.getByText("Perfil de demonstração.")).toBeTruthy(); // os avisos importantes ficam à vista
+    expect(screen.getByText("Confira sempre o edital no PNCP.")).toBeTruthy();
   });
 
   it("os botões de estado e de prazo da lista alternam e somam filtros", async () => {
@@ -218,6 +309,49 @@ describe("App", () => {
     render(<App />);
     expect(await screen.findByText("Contratação de Empresa para Reforma da Escola Municipal")).toBeTruthy();
     expect(screen.getByText("Município de Lambari")).toBeTruthy();
+  });
+
+  it("usa a grafia da cidade do edital no nome do órgão sem acento", async () => {
+    respondeCom(
+      resposta(
+        dados([edital({ prazo: emHoras(40), orgao: "MUNICIPIO DE IBIRITE", municipio: "Ibirité", uf: "MG" })]),
+      ),
+    );
+    render(<App />);
+    expect(await screen.findByText("Município de Ibirité")).toBeTruthy();
+    expect(screen.getByText("Ibirité / MG")).toBeTruthy();
+  });
+
+  it("diz, no cartão, que o edital foi publicado duas vezes e leva ao outro registro", async () => {
+    const outro = { id: "x", numero: "34/2026", link: "https://pncp.gov.br/app/editais/1/2026/2", publicado: "2026-10-05" };
+    respondeCom(resposta(dados([edital({ prazo: emHoras(40), repetidos: [outro] })])));
+    render(<App />);
+
+    const link = await screen.findByRole("link", { name: /nº 34\/2026/ });
+    expect(link.getAttribute("href")).toBe("https://pncp.gov.br/app/editais/1/2026/2");
+    expect(screen.getByText(/Também publicado como/)).toBeTruthy();
+  });
+
+  it("sem número que preste, o outro registro aparece como 'outro registro'", async () => {
+    const outro = { id: "x", numero: null, link: null, publicado: null };
+    respondeCom(resposta(dados([edital({ prazo: emHoras(40), repetidos: [outro] })])));
+    render(<App />);
+
+    expect(await screen.findByText(/outro registro/)).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /outro registro/ })).toBeNull(); // sem link, sem âncora
+  });
+
+  it("mostra o número do edital junto da modalidade, quando o órgão preencheu", async () => {
+    respondeCom(resposta(dados([edital({ prazo: emHoras(40), numero: "12/2026" })])));
+    render(<App />);
+    expect(await screen.findByText(/Concorrência Eletrônica nº 12\/2026/)).toBeTruthy();
+  });
+
+  it("edital sem repetido não mostra a linha", async () => {
+    respondeCom(resposta(dados([edital({ prazo: emHoras(40) })])));
+    render(<App />);
+    await screen.findByText("Robô em dia");
+    expect(screen.queryByText(/Também publicado como/)).toBeNull();
   });
 
   it("avisa quando o robô está há mais de um dia e meio sem atualizar", async () => {

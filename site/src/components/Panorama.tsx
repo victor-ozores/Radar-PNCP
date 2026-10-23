@@ -1,15 +1,18 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
+import { NA_TELA, m, subir } from "../animacao";
 import { formataInteiro, formataValor, plural } from "../lib/formatos";
 import {
   FAIXAS_PRAZO,
   type Filtro,
   faixasPrazo,
+  intervaloDaFaixa,
   porUf,
   resumoValores,
   termosMaisCitados,
   topMunicipios,
 } from "../lib/painel";
+import { diaBR } from "../lib/tempo";
 import type { Edital } from "../lib/types";
 import { Barras } from "./Barras";
 
@@ -34,7 +37,15 @@ interface CartaoProps {
 
 function Cartao({ id, titulo, subtitulo, ordem, extra, children }: CartaoProps) {
   return (
-    <section className="cartao" aria-labelledby={id} style={{ "--ordem": ordem } as CSSProperties}>
+    <m.section
+      className="cartao"
+      aria-labelledby={id}
+      style={{ order: ordem }}
+      variants={subir}
+      initial="oculto"
+      whileInView="visivel"
+      viewport={NA_TELA}
+    >
       <header className="cartao-topo">
         <div>
           <h3 id={id}>{titulo}</h3>
@@ -43,12 +54,13 @@ function Cartao({ id, titulo, subtitulo, ordem, extra, children }: CartaoProps) 
         {extra}
       </header>
       {children}
-    </section>
+    </m.section>
   );
 }
 
 export function Panorama({ editais, agora, filtro, aoMudar }: Props) {
   const [aba, setAba] = useState<"estados" | "cidades">("estados");
+  const hoje = diaBR(agora);
   const dados = useMemo(
     () => ({
       prazo: faixasPrazo(editais, agora),
@@ -65,12 +77,18 @@ export function Panorama({ editais, agora, filtro, aoMudar }: Props) {
   const alterna = (campo: "uf" | "cidade" | "termo" | "faixa") => (l: { id: string }) =>
     aoMudar({ ...filtro, [campo]: filtro[campo] === l.id ? "" : l.id }, filtro[campo] !== l.id);
 
-  const prazoEscolhido = FAIXAS_PRAZO.find((f) => f.min === filtro.prazoMin && f.max === filtro.prazoMax)?.id ?? null;
+  // a faixa do gráfico vira datas no filtro; está "escolhida" quando as datas são exatamente as dela
+  const prazoEscolhido =
+    FAIXAS_PRAZO.find((f) => {
+      const { de, ate } = intervaloDaFaixa(f, hoje);
+      return de === filtro.prazoDe && ate === filtro.prazoAte;
+    })?.id ?? null;
   const escolhePrazo = (l: { id: string }) => {
     const faixa = FAIXAS_PRAZO.find((f) => f.id === l.id);
     if (!faixa) return;
     const ativa = prazoEscolhido === l.id;
-    aoMudar({ ...filtro, prazoMin: ativa ? null : faixa.min, prazoMax: ativa ? null : faixa.max }, !ativa);
+    const { de, ate } = intervaloDaFaixa(faixa, hoje);
+    aoMudar({ ...filtro, prazoDe: ativa ? "" : de, prazoAte: ativa ? "" : ate }, !ativa);
   };
 
   return (

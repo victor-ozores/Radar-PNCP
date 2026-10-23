@@ -26,6 +26,7 @@ export function edital(parcial: Partial<Edital> = {}): Edital {
     uf: "SP",
     municipio: "Campinas",
     modalidade: "Concorrência Eletrônica",
+    numero: null,
     valor: 900_000,
     registro_de_precos: false,
     abertura: null,
@@ -34,6 +35,7 @@ export function edital(parcial: Partial<Edital> = {}): Edital {
     combina: "muito",
     termos: ["obra", "reforma"],
     link: "https://pncp.gov.br/app/editais/00000000000000/2026/1",
+    repetidos: [],
     ...parcial,
   };
 }

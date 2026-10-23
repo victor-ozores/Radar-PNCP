@@ -1,5 +1,4 @@
-import type { CSSProperties } from "react";
-
+import { NA_TELA, SUAVE, m, useReducedMotion } from "../animacao";
 import { formataInteiro, plural } from "../lib/formatos";
 import type { Linha } from "../lib/painel";
 
@@ -15,6 +14,23 @@ interface Props {
   destaque?: string;
 }
 
+/** A barra cresce da esquerda quando aparece na tela. Com "menos movimento", já vem do tamanho certo. */
+function Barra({ proporcao, destaque, ordem }: { proporcao: number; destaque: boolean; ordem: number }) {
+  const reduzido = useReducedMotion();
+  const largura = `${proporcao * 100}%`;
+  const classe = `barras-barra ${destaque ? "barras-destaque" : ""}`;
+  if (reduzido) return <span className={classe} style={{ width: largura }} />;
+  return (
+    <m.span
+      className={classe}
+      initial={{ width: "0%" }}
+      whileInView={{ width: largura }}
+      viewport={NA_TELA}
+      transition={{ duration: 0.7, ease: SUAVE, delay: Math.min(ordem, 8) * 0.05 }}
+    />
+  );
+}
+
 /**
  * Barras horizontais: rótulo, barra e valor. É uma lista de verdade (leitor de tela lê "SP, 453
  * editais"); a barra é só o desenho, e o número fica sempre escrito ao lado.
@@ -25,16 +41,13 @@ export function Barras({ nome, linhas, escolhida = null, aoEscolher, destaque }:
 
   return (
     <ul className="barras" aria-label={nome}>
-      {linhas.map((l) => {
+      {linhas.map((l, i) => {
         const marcada = escolhida === l.id;
         const conteudo = (
           <>
             <span className="barras-rotulo">{l.rotulo}</span>
             <span className="barras-trilho" aria-hidden="true">
-              <span
-                className={`barras-barra ${destaque === l.id ? "barras-destaque" : ""}`}
-                style={{ "--proporcao": l.n / maior } as CSSProperties}
-              />
+              <Barra proporcao={l.n / maior} destaque={destaque === l.id} ordem={i} />
             </span>
             <span className="barras-valor">{formataInteiro(l.n)}</span>
           </>

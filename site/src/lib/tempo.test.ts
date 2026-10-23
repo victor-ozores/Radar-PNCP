@@ -5,6 +5,7 @@ import {
   dataCurta,
   dataEHora,
   diaBR,
+  diaCurto,
   diaDoMes,
   diasAte,
   emQuantosDias,
@@ -12,6 +13,7 @@ import {
   horaCurta,
   horasDesde,
   mesCurto,
+  somaDias,
 } from "./tempo";
 
 describe("dia em Brasília", () => {
@@ -34,6 +36,20 @@ describe("dia em Brasília", () => {
 
   it("aceita Date e texto ISO", () => {
     expect(diasAte(new Date("2026-10-23T12:00:00-03:00"), AGORA)).toBe(2);
+  });
+});
+
+describe("dias em texto AAAA-MM-DD", () => {
+  it("soma dias de calendário, virando mês e ano", () => {
+    expect(somaDias("2026-10-21", 7)).toBe("2026-10-28");
+    expect(somaDias("2026-10-28", 7)).toBe("2026-11-04");
+    expect(somaDias("2026-12-30", 3)).toBe("2027-01-02");
+    expect(somaDias("2026-03-01", -1)).toBe("2026-02-28");
+    expect(somaDias("2024-02-28", 1)).toBe("2024-02-29"); // ano bissexto
+  });
+
+  it("diaCurto", () => {
+    expect(diaCurto("2026-10-05")).toBe("05/10");
   });
 });
 

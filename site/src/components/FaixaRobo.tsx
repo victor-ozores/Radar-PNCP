@@ -1,3 +1,4 @@
+import { NA_TELA, m, subir } from "../animacao";
 import { HORAS_ATE_AVISAR } from "../config";
 import { formataInteiro, plural } from "../lib/formatos";
 import { dataCurta, dataEHora, haQuantoTempo, horaCurta, horasDesde } from "../lib/tempo";
@@ -53,7 +54,14 @@ export function FaixaRobo({ robo, geradoEm, agora }: { robo: Robo; geradoEm: str
   const u = robo.ultima;
 
   return (
-    <section className={`robo ${velho ? "robo-alerta" : ""}`} aria-labelledby="robo-titulo">
+    <m.section
+      className={`robo ${velho ? "robo-alerta" : ""}`}
+      aria-labelledby="robo-titulo"
+      variants={subir}
+      initial="oculto"
+      whileInView="visivel"
+      viewport={NA_TELA}
+    >
       <div className="robo-principal">
         <span className={`robo-icone ${velho ? "robo-icone-aviso" : "robo-icone-ok"}`}>
           <Icone nome={velho ? "alerta" : "check"} tam={18} />
@@ -78,24 +86,27 @@ export function FaixaRobo({ robo, geradoEm, agora }: { robo: Robo; geradoEm: str
       </div>
 
       {robo.ultimas.length > 0 && (
-        <div className="robo-historico">
+        <>
           <ol className="execucoes" aria-label="Últimas execuções, da mais antiga para a mais recente">
             {robo.ultimas.map((e, i) => (
               <Execucao key={`${e.em}-${i}`} e={e} />
             ))}
           </ol>
-          <p className="robo-detalhe">
-            {robo.taxa_sucesso_30d_pct !== null && (
-              <>
-                {formataInteiro(Math.round(robo.taxa_sucesso_30d_pct))}% de sucesso em {robo.execucoes_30d}{" "}
-                {plural(robo.execucoes_30d, "execução", "execuções")} nos últimos 30 dias.{" "}
-              </>
-            )}
-            {u && u.lidos !== null && <>Última execução: {detalhesDa(u).join(", ")}. </>}
-            <span className="so-leitor">Arquivo gerado {dataEHora(geradoEm, agora)}.</span>
-          </p>
-        </div>
+          <details className="detalhes">
+            <summary>Detalhes do robô</summary>
+            <p>
+              {robo.taxa_sucesso_30d_pct !== null && (
+                <>
+                  {formataInteiro(Math.round(robo.taxa_sucesso_30d_pct))}% de sucesso em {robo.execucoes_30d}{" "}
+                  {plural(robo.execucoes_30d, "execução", "execuções")} nos últimos 30 dias.{" "}
+                </>
+              )}
+              {u && u.lidos !== null && <>Última execução: {detalhesDa(u).join(", ")}. </>}
+              Arquivo de dados gerado {dataEHora(geradoEm, agora)}.
+            </p>
+          </details>
+        </>
       )}
-    </section>
+    </m.section>
   );
 }
