@@ -48,27 +48,24 @@ export function Animacao({ children }: { children: ReactNode }) {
 export function useContagem(alvo: number, duracaoMs = 1100): number {
   const reduzido = useReducedMotion();
   const [mostrado, setMostrado] = useState(reduzido ? alvo : 0);
-  const anterior = useRef(reduzido ? alvo : 0);
+  const atual = useRef(reduzido ? alvo : 0); // o que está na tela agora: uma nova contagem parte dele, não do zero
 
   useEffect(() => {
     if (reduzido) {
-      anterior.current = alvo;
+      atual.current = alvo;
       setMostrado(alvo);
       return;
     }
-    const de = anterior.current;
+    const de = atual.current;
     const duracao = de === 0 ? duracaoMs : 400;
     const inicio = performance.now();
     let quadro = 0;
     const passo = (agora: number) => {
-      const t = Math.min(1, (agora - inicio) / duracao);
+      const t = Math.min(1, Math.max(0, (agora - inicio) / duracao)); // o 1º quadro pode vir um instante antes do início
       const suave = 1 - Math.pow(1 - t, 4); // sai rápido e pousa devagar
-      setMostrado(Math.round(de + (alvo - de) * suave));
-      if (t < 1) {
-        quadro = requestAnimationFrame(passo);
-      } else {
-        anterior.current = alvo;
-      }
+      atual.current = Math.round(de + (alvo - de) * suave);
+      setMostrado(atual.current);
+      if (t < 1) quadro = requestAnimationFrame(passo);
     };
     quadro = requestAnimationFrame(passo);
     return () => cancelAnimationFrame(quadro);

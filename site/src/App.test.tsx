@@ -41,8 +41,6 @@ function cartoes(): HTMLElement[] {
 
 beforeEach(() => {
   vi.unstubAllGlobals();
-  window.localStorage.clear();
-  delete document.documentElement.dataset.tema;
 });
 
 afterEach(() => {
@@ -232,19 +230,21 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "4 a 7 dias: 1 edital" }).getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("os filtros avançados ficam recolhidos, mas abrem sozinhos quando algum está ligado", async () => {
+  it("o número de registro de preços do destaque liga o filtro e o interruptor", async () => {
     respondeCom(
       resposta(dados([edital({ prazo: emHoras(40), registro_de_precos: true }), edital({ prazo: emHoras(60) })])),
     );
     render(<App />);
-    await screen.findByText("Mais filtros");
-    const detalhes = screen.getByText("Mais filtros").closest("details")!;
-    expect(detalhes.open).toBe(false);
+    const interruptor = (await screen.findByLabelText(/Só registro de preços/)) as HTMLInputElement;
+    expect(interruptor.checked).toBe(false);
 
-    fireEvent.click(screen.getByRole("button", { name: /Em registro de preços/ })); // botão do destaque
+    fireEvent.click(screen.getByRole("button", { name: "Ver na lista os de registro de preços" }));
     expect(cartoes()).toHaveLength(1);
-    expect(screen.getByText("Mais filtros").closest("details")!.open).toBe(true);
+    expect((screen.getByLabelText(/Só registro de preços/) as HTMLInputElement).checked).toBe(true);
     expect(screen.getByRole("button", { name: "Tirar filtro: Registro de preços" })).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText(/Só registro de preços/)); // desliga pelo próprio interruptor
+    expect(cartoes()).toHaveLength(2);
   });
 
   it("o que é técnico fica em seções que abrem: detalhes do robô e como o painel é calculado", async () => {
@@ -319,7 +319,36 @@ describe("App", () => {
     );
     render(<App />);
     expect(await screen.findByText("Município de Ibirité")).toBeTruthy();
-    expect(screen.getByText("Ibirité / MG")).toBeTruthy();
+    expect(within(cartoes()[0]!).getByText("Ibirité / MG")).toBeTruthy();
+  });
+
+  it("espera a data ficar completa: o ano pela metade não mexe na lista nem apaga o que se digitou", async () => {
+    respondeCom(resposta(dados([edital({ prazo: emHoras(40) }), edital({ prazo: emHoras(24 * 9) })])));
+    render(<App />);
+    const ate = (await screen.findByLabelText("Até")) as HTMLInputElement;
+
+    fireEvent.change(ate, { target: { value: "0002-10-29" } }); // o navegador passa por "0002", "0020"...
+    expect(screen.queryByRole("button", { name: /Tirar filtro/ })).toBeNull();
+    expect(ate.value).toBe("0002-10-29"); // e o campo não volta atrás
+
+    fireEvent.change(ate, { target: { value: daquiA(5) } });
+    expect(screen.getByRole("button", { name: /Tirar filtro: Prazo/ })).toBeTruthy();
+    expect(screen.getByText("Mostrando 1 de 1 edital")).toBeTruthy();
+
+    fireEvent.change(ate, { target: { value: "" } }); // apagou: sai o filtro
+    expect(screen.queryByRole("button", { name: /Tirar filtro/ })).toBeNull();
+  });
+
+  it("atalho e 'limpar filtros' mudam as datas mesmo depois de a pessoa ter digitado", async () => {
+    respondeCom(resposta(dados([edital({ prazo: emHoras(40) }), edital({ prazo: emHoras(24 * 9) })])));
+    render(<App />);
+    const ate = (await screen.findByLabelText("Até")) as HTMLInputElement;
+
+    fireEvent.change(ate, { target: { value: "0020-10-29" } }); // rascunho pela metade
+    fireEvent.click(screen.getByRole("button", { name: "Até 7 dias" }));
+    expect(ate.value).toBe(daquiA(7)); // o atalho vale mais que o rascunho
+    fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    expect(ate.value).toBe("");
   });
 
   it("diz, no cartão, que o edital foi publicado duas vezes e leva ao outro registro", async () => {
@@ -371,17 +400,158 @@ describe("App", () => {
     expect(screen.getByText(/Atualizado há/)).toBeTruthy();
   });
 
-  it("alterna o tema, lembra a escolha e aplica no documento", async () => {
+  it("tem um tema só (escuro): sem botão para trocar e sem marca de tema no documento", async () => {
     respondeCom(resposta(dados([edital({ prazo: emHoras(50) })])));
     render(<App />);
     await screen.findByText("Robô em dia");
+    expect(screen.queryByRole("button", { name: /tema/i })).toBeNull();
+    expect(document.documentElement.dataset.tema).toBeUndefined();
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: "Usar tema escuro" }));
-    expect(document.documentElement.dataset.tema).toBe("escuro");
-    expect(window.localStorage.getItem("radar-tema")).toBe("escuro");
+  it("o botão de filtros do celular abre e fecha o painel e conta o que está escolhido", async () => {
+    respondeCom(resposta(dados([edital({ prazo: emHoras(40), uf: "SP" }), edital({ prazo: emHoras(60), uf: "MG" })])));
+    render(<App />);
+    const alternar = await screen.findByRole("button", { name: /Filtrar por prazo, estado e valor/ });
+    const corpo = document.getElementById("filtros-corpo")!;
+    expect(alternar.getAttribute("aria-expanded")).toBe("false");
+    expect(corpo.classList.contains("filtros-fechado")).toBe(true);
 
-    fireEvent.click(screen.getByRole("button", { name: "Usar tema claro" }));
-    expect(document.documentElement.dataset.tema).toBe("claro");
+    fireEvent.click(alternar);
+    expect(alternar.getAttribute("aria-expanded")).toBe("true");
+    expect(corpo.classList.contains("filtros-fechado")).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "SP" }));
+    fireEvent.click(screen.getByRole("button", { name: "Até 7 dias" }));
+    expect(within(alternar).getByText("2")).toBeTruthy(); // estado + prazo; a busca não entra na conta
+  });
+
+  it("ordena pela escolha de 'Ordenar por' e a escolha continua ao limpar os filtros", async () => {
+    respondeCom(
+      resposta(
+        dados([
+          edital({ prazo: emHoras(30), valor: 200_000, objeto: "Obra barata e urgente" }),
+          edital({ prazo: emHoras(90), valor: 4_000_000, objeto: "Obra cara e calma" }),
+        ]),
+      ),
+    );
+    render(<App />);
+    await screen.findByText("Obra cara e calma");
+    expect(cartoes()[0]!.textContent).toContain("Obra barata e urgente"); // por prazo, o mais perto primeiro
+
+    fireEvent.change(screen.getByLabelText("Ordenar por"), { target: { value: "valor" } });
+    expect(cartoes()[0]!.textContent).toContain("Obra cara e calma");
+
+    fireEvent.change(screen.getByLabelText("Buscar"), { target: { value: "cara" } });
+    fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    expect((screen.getByLabelText("Ordenar por") as HTMLSelectElement).value).toBe("valor");
+  });
+
+  it("o '?' abre a explicação, fecha com Esc ou ao tocar de novo, e tem o nome em forma de pergunta", async () => {
+    respondeCom(resposta(dados([edital({ prazo: emHoras(50), registro_de_precos: true })])));
+    render(<App />);
+    await screen.findByText("Robô em dia");
+
+    const botao = screen.getAllByRole("button", { name: "O que é registro de preços?" })[0]!;
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(botao.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(botao);
+    const balao = screen.getByRole("tooltip");
+    expect(balao.textContent).toMatch(/ata de preços/);
+    expect(botao.getAttribute("aria-describedby")).toBe(balao.id);
+    expect(botao.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    fireEvent.click(botao);
+    expect(screen.getByRole("tooltip")).toBeTruthy();
+    fireEvent.click(botao); // tocar de novo fecha
+    expect(screen.queryByRole("tooltip")).toBeNull();
+
+    fireEvent.click(botao);
+    fireEvent.pointerDown(document.body); // tocar fora fecha
+    expect(screen.queryByRole("tooltip")).toBeNull();
+  });
+
+  it("conta a história do dia a partir dos dados: prazos, estados e valores", async () => {
+    respondeCom(
+      resposta(
+        dados([
+          edital({ prazo: emHoras(30), uf: "SP", valor: 2_000_000 }),
+          edital({ prazo: emHoras(50), uf: "SP", valor: 300_000 }),
+          edital({ prazo: emHoras(24 * 20), uf: "MG", valor: 500_000 }),
+        ]),
+      ),
+    );
+    render(<App />);
+    const resumo = (await screen.findByRole("heading", { name: "O resumo de hoje" })).closest("aside")!;
+    expect(resumo.textContent).toContain("2 prazos acabam em até 3 dias.");
+    expect(resumo.textContent).toContain("SP concentra 67% dos editais (2). Depois vêm MG.");
+    expect(resumo.textContent).toContain("1 passa de R$ 1 milhão. O maior vale R$ 2 mi.");
+    // e cada gráfico tem a sua frase
+    expect(screen.getByText("A faixa mais cheia é “Até 3 dias”, com 2 de 3 (67%). 2 acabam em até 3 dias.")).toBeTruthy();
+    expect(screen.getByText(/^SP lidera, com 2 editais \(67%\)\. .+ é a cidade com mais editais: 2\.$/)).toBeTruthy();
+  });
+
+  describe("painel do robô", () => {
+    const rodadas = () => screen.getAllByRole("button", { name: /: (rodou|falhou)/ });
+
+    it("mostra uma barra por rodada, reserva o lugar das que faltam e marca a mais recente", async () => {
+      respondeCom(resposta(dados([edital({ prazo: emHoras(50) })])));
+      render(<App />);
+      await screen.findByText("Robô em dia");
+
+      expect(rodadas()).toHaveLength(3);
+      expect(document.querySelectorAll(".exec-vazia")).toHaveLength(14 - 3);
+      expect(rodadas()[2]!.getAttribute("aria-pressed")).toBe("true");
+      expect(screen.getByText("Operacional")).toBeTruthy();
+      // a última rodada traz o que o robô fez, contado em passos
+      expect(screen.getByText("Leu o PNCP")).toBeTruthy();
+      expect(screen.getByText("2.291 registros")).toBeTruthy();
+      expect(screen.getByText("1.009 editais novos")).toBeTruthy();
+    });
+
+    it("escolher uma barra diz o que aconteceu naquela rodada, por escrito e não só pela cor", async () => {
+      respondeCom(resposta(dados([edital({ prazo: emHoras(50) })])));
+      render(<App />);
+      await screen.findByText("Robô em dia");
+
+      const falha = rodadas().find((b) => /falhou/.test(b.getAttribute("aria-label")!))!;
+      fireEvent.click(falha);
+      expect(falha.getAttribute("aria-pressed")).toBe("true");
+      expect(document.querySelector(".execucao-detalhe")!.textContent).toMatch(/Rodada de 20\/10 às 12h06: falhou\./);
+
+      // a rodada mais recente tem os números da última execução
+      fireEvent.click(rodadas()[2]!);
+      expect(document.querySelector(".execucao-detalhe")!.textContent).toContain("2.291 registros lidos");
+    });
+
+    it("as setas do teclado andam entre as barras e só uma delas entra na ordem do Tab", async () => {
+      respondeCom(resposta(dados([edital({ prazo: emHoras(50) })])));
+      render(<App />);
+      await screen.findByText("Robô em dia");
+
+      expect(rodadas().map((b) => b.tabIndex)).toEqual([-1, -1, 0]);
+      fireEvent.keyDown(rodadas()[2]!, { key: "ArrowLeft" });
+      expect(rodadas().map((b) => b.getAttribute("aria-pressed"))).toEqual(["false", "true", "false"]);
+      expect(document.activeElement).toBe(rodadas()[1]);
+      fireEvent.keyDown(rodadas()[1]!, { key: "Home" });
+      expect(rodadas()[0]!.getAttribute("aria-pressed")).toBe("true");
+      fireEvent.keyDown(rodadas()[0]!, { key: "ArrowLeft" }); // no começo, fica no começo
+      expect(rodadas()[0]!.getAttribute("aria-pressed")).toBe("true");
+    });
+
+    it("sem nenhuma rodada registrada, não desenha a faixa nem os passos", async () => {
+      const vazio = dados([edital({ prazo: emHoras(50) })]);
+      vazio.robo.ultimas = [];
+      vazio.robo.ultima = null;
+      respondeCom(resposta(vazio));
+      render(<App />);
+      await screen.findByText("Robô em dia");
+      expect(document.querySelector(".faixa-execucoes")).toBeNull();
+      expect(screen.queryByText("Leu o PNCP")).toBeNull();
+    });
   });
 
   it("explica o erro e tenta de novo", async () => {

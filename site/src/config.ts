@@ -14,5 +14,8 @@ export const PAINEL_URL: string =
 /** Depois de quantas horas sem atualizar o painel avisa que os dados podem estar velhos. */
 export const HORAS_ATE_AVISAR = 36;
 
+/** Quantas barras tem a faixa das últimas rodadas do robô (o mesmo que `EXECUCOES_NO_PAINEL` em src/radar/painel.py). */
+export const EXECUCOES_NA_FAIXA = 14;
+
 /** Quantos editais aparecem de cada vez na lista. */
 export const TAMANHO_PAGINA = 30;

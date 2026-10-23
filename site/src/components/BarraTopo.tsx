@@ -1,25 +1,23 @@
 import { SUAVE, m } from "../animacao";
 import { HORAS_ATE_AVISAR, REPO_URL } from "../config";
 import { haQuantoTempo, horasDesde } from "../lib/tempo";
-import type { Tema } from "../lib/tema";
 import type { Robo } from "../lib/types";
 import { Icone } from "./Icone";
 
 interface Props {
   robo: Robo | null;
   agora: Date;
-  tema: Tema;
-  aoAlternarTema: () => void;
 }
 
 const LINKS = [
   { href: "#resumo", texto: "Resumo" },
+  { href: "#robo", texto: "Robô" },
   { href: "#panorama", texto: "Panorama" },
   { href: "#editais", texto: "Editais" },
   { href: "#sobre", texto: "Sobre" },
 ];
 
-export function BarraTopo({ robo, agora, tema, aoAlternarTema }: Props) {
+export function BarraTopo({ robo, agora }: Props) {
   const ultimoOk = robo?.ultima_execucao_ok_em ?? null;
   const velho = robo !== null && (ultimoOk === null || horasDesde(ultimoOk, agora) > HORAS_ATE_AVISAR);
 
@@ -50,7 +48,7 @@ export function BarraTopo({ robo, agora, tema, aoAlternarTema }: Props) {
 
         <div className="barra-acoes">
           {robo && (
-            <span className={`status ${velho ? "status-aviso" : "status-ok"}`} title="Última atualização do robô">
+            <a className={`status ${velho ? "status-aviso" : "status-ok"}`} href="#robo" title="Última atualização do robô. Toque para ver o painel do robô.">
               <span className="status-ponto" aria-hidden="true" />
               <span>
                 {ultimoOk === null
@@ -59,27 +57,8 @@ export function BarraTopo({ robo, agora, tema, aoAlternarTema }: Props) {
                     ? `Parado ${haQuantoTempo(ultimoOk, agora)}`
                     : `Atualizado ${haQuantoTempo(ultimoOk, agora)}`}
               </span>
-            </span>
+            </a>
           )}
-          <m.button
-            type="button"
-            className="botao-icone"
-            onClick={aoAlternarTema}
-            aria-label={tema === "escuro" ? "Usar tema claro" : "Usar tema escuro"}
-            title={tema === "escuro" ? "Tema claro" : "Tema escuro"}
-            whileTap={{ scale: 0.9 }}
-          >
-            {/* a chave faz o ícone novo entrar girando quando o tema troca */}
-            <m.span
-              key={tema}
-              className="botao-icone-miolo"
-              initial={{ rotate: -80, opacity: 0 }}
-              animate={{ rotate: 0, opacity: 1 }}
-              transition={{ duration: 0.3, ease: SUAVE }}
-            >
-              <Icone nome={tema === "escuro" ? "sol" : "lua"} tam={18} />
-            </m.span>
-          </m.button>
           <a className="botao-icone" href={REPO_URL} target="_blank" rel="noopener noreferrer" aria-label="Código no GitHub (abre em outra aba)" title="Código no GitHub">
             <Icone nome="github" tam={18} />
           </a>

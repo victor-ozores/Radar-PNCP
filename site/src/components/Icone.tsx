@@ -72,13 +72,14 @@ const DESENHOS = {
       <path d="M12 10v4.5M12 17.3v.2" />
     </>
   ),
-  sol: (
+  info: (
     <>
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4" />
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5.5M12 7.6v.2" />
     </>
   ),
-  lua: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />,
+  filtro: <path d="M4 5h16l-6.2 7.4V19l-3.6-1.8v-4.8z" />,
+  seta: <path d="M5 12h14M13 6l6 6-6 6" />,
   github: (
     <path
       fill="currentColor"

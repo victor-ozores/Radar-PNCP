@@ -3,10 +3,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Animacao } from "./animacao";
 import { BarraTopo } from "./components/BarraTopo";
 import { Esqueleto } from "./components/Esqueleto";
-import { FaixaRobo } from "./components/FaixaRobo";
 import { Hero } from "./components/Hero";
 import { Lista } from "./components/Lista";
 import { Panorama } from "./components/Panorama";
+import { PainelRobo } from "./components/PainelRobo";
 import { Rodape } from "./components/Rodape";
 import { PAINEL_URL, PNCP_URL } from "./config";
 import { carregaPainel } from "./lib/carrega";
@@ -19,7 +19,6 @@ import {
   vigentes,
   type Filtro,
 } from "./lib/painel";
-import { useTema } from "./lib/tema";
 import type { Painel } from "./lib/types";
 
 type Estado =
@@ -73,7 +72,6 @@ export function App() {
   const [tentativa, setTentativa] = useState(0);
   const [filtro, setFiltro] = useState<Filtro>(FILTRO_INICIAL);
   const agora = useAgora();
-  const { tema, alternar } = useTema();
 
   useEffect(() => {
     const controle = new AbortController();
@@ -114,7 +112,7 @@ export function App() {
         <a className="pular" href="#editais">
           Pular para a lista de editais
         </a>
-        <BarraTopo robo={painel?.robo ?? null} agora={agora} tema={tema} aoAlternarTema={alternar} />
+        <BarraTopo robo={painel?.robo ?? null} agora={agora} />
         <main>
           {estado.tipo === "carregando" && <Esqueleto />}
           {estado.tipo === "erro" && (
@@ -124,13 +122,14 @@ export function App() {
             <>
               <Hero
                 painel={painel}
+                fortes={fortes}
                 resumo={resumo}
                 mediana={mediana}
                 agora={agora}
                 filtro={filtro}
                 aoMudar={mudaFiltro}
               />
-              <FaixaRobo robo={painel.robo} geradoEm={painel.gerado_em} agora={agora} />
+              <PainelRobo robo={painel.robo} geradoEm={painel.gerado_em} agora={agora} />
               <Panorama editais={fortes} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
               <Lista editais={abertos} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
             </>

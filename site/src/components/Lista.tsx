@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 
 import { TAMANHO_PAGINA } from "../config";
 import { formataInteiro, plural } from "../lib/formatos";
-import { filtrar, filtroLimpo, filtrosAtivos, intervaloDisponivel, type Filtro } from "../lib/painel";
+import { filtrar, filtroLimpo, filtrosAtivos, intervaloDisponivel, type Filtro, type Ordem } from "../lib/painel";
 import type { Edital } from "../lib/types";
 import { CartaoEdital } from "./CartaoEdital";
-import { Filtros } from "./Filtros";
+import { Dica } from "./Dica";
+import { Filtros, FiltrosAtivos } from "./Filtros";
 
 interface Props {
   /** Os editais abertos (inclui os que combinam só em parte). */
@@ -14,6 +15,12 @@ interface Props {
   filtro: Filtro;
   aoMudar: (filtro: Filtro) => void;
 }
+
+const ORDENS: { valor: Ordem; rotulo: string }[] = [
+  { valor: "prazo", rotulo: "Prazo mais próximo" },
+  { valor: "nota", rotulo: "Combina mais" },
+  { valor: "valor", rotulo: "Maior valor" },
+];
 
 export function Lista({ editais, agora, filtro, aoMudar }: Props) {
   const [visiveis, setVisiveis] = useState(TAMANHO_PAGINA);
@@ -39,40 +46,76 @@ export function Lista({ editais, agora, filtro, aoMudar }: Props) {
   return (
     <section className="lista" id="editais" aria-labelledby="lista-titulo">
       <div className="secao-topo">
-        <h2 id="lista-titulo">Editais abertos</h2>
-        <p className="contagem" role="status">
-          {achados.length === 0
-            ? "Nenhum edital com esses filtros."
-            : `Mostrando ${formataInteiro(mostrando)} de ${formataInteiro(achados.length)} ${plural(achados.length, "edital", "editais")}`}
+        <div>
+          <h2 id="lista-titulo">Editais abertos</h2>
+          <p className="dica-secao">
+            Cada cartão é um edital que ainda aceita proposta. O quadrado da esquerda mostra o dia em que o prazo
+            acaba.
+          </p>
+        </div>
+        <p className="como-ler">
+          Como ler os cartões
+          <Dica rotulo="Como ler os cartões">
+            <strong>Combina muito</strong> e <strong>Combina</strong>: o edital tem as palavras, o estado, a
+            modalidade e o valor do perfil. <strong>Combina em parte</strong>: tem só algumas dessas características.
+            Quadrado do prazo: <strong>vermelho</strong> acaba em até 2 dias, <strong>amarelo</strong> em até 7,
+            <strong> cinza</strong> depois disso. Sempre confira o edital no PNCP.
+          </Dica>
         </p>
       </div>
 
-      <Filtros filtro={filtro} aoMudar={aoMudar} agora={agora} ufs={ufs} datas={datas} emParte={emParte} registro={registro} />
+      <div className="lista-layout">
+        <aside className="lista-lateral" aria-label="Filtros">
+          <Filtros filtro={filtro} aoMudar={aoMudar} agora={agora} ufs={ufs} datas={datas} emParte={emParte} registro={registro} />
+        </aside>
 
-      {achados.length > 0 ? (
-        <ul className="editais">
-          {achados.slice(0, visiveis).map((e, i) => (
-            <CartaoEdital key={e.id} edital={e} agora={agora} posicao={i % TAMANHO_PAGINA} />
-          ))}
-        </ul>
-      ) : (
-        <div className="sem-resultado">
-          <p>Nenhum edital combina com essa escolha.</p>
-          {filtrado && (
-            <button type="button" className="botao" onClick={() => aoMudar(filtroLimpo(filtro))}>
-              Limpar filtros
-            </button>
+        <div className="lista-resultado">
+          <div className="resultado-topo">
+            <p className="contagem" role="status">
+              {achados.length === 0
+                ? "Nenhum edital com esses filtros."
+                : `Mostrando ${formataInteiro(mostrando)} de ${formataInteiro(achados.length)} ${plural(achados.length, "edital", "editais")}`}
+            </p>
+            <label className="campo-ordem">
+              <span>Ordenar por</span>
+              <select value={filtro.ordem} onChange={(ev) => aoMudar({ ...filtro, ordem: ev.target.value as Ordem })}>
+                {ORDENS.map((o) => (
+                  <option key={o.valor} value={o.valor}>
+                    {o.rotulo}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <FiltrosAtivos filtro={filtro} aoMudar={aoMudar} />
+
+          {achados.length > 0 ? (
+            <ul className="editais">
+              {achados.slice(0, visiveis).map((e, i) => (
+                <CartaoEdital key={e.id} edital={e} agora={agora} posicao={i % TAMANHO_PAGINA} />
+              ))}
+            </ul>
+          ) : (
+            <div className="sem-resultado">
+              <p>Nenhum edital combina com essa escolha.</p>
+              {filtrado && (
+                <button type="button" className="botao" onClick={() => aoMudar(filtroLimpo(filtro))}>
+                  Limpar filtros
+                </button>
+              )}
+            </div>
+          )}
+
+          {achados.length > visiveis && (
+            <p className="mais">
+              <button type="button" className="botao" onClick={() => setVisiveis((v) => v + TAMANHO_PAGINA)}>
+                Mostrar mais {formataInteiro(Math.min(TAMANHO_PAGINA, achados.length - visiveis))}
+              </button>
+            </p>
           )}
         </div>
-      )}
-
-      {achados.length > visiveis && (
-        <p className="mais">
-          <button type="button" className="botao" onClick={() => setVisiveis((v) => v + TAMANHO_PAGINA)}>
-            Mostrar mais {formataInteiro(Math.min(TAMANHO_PAGINA, achados.length - visiveis))}
-          </button>
-        </p>
-      )}
+      </div>
     </section>
   );
 }

@@ -3,9 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0c0d0f" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#161922" />
+    <!-- fundo escuro já no primeiro quadro, antes do estilo carregar (senão pisca branco) -->
+    <style>
+      html {
+        color-scheme: dark;
+        background: #161922;
+      }
+    </style>
     <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin />
     <meta
       name="description"
