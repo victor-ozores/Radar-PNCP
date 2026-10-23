@@ -79,12 +79,14 @@ Os termos ainda não foram calibrados com quem faz orçamentos de verdade (veja 
 * **Onde estão** (estado e cidade), **quanto valem** e **em que prazo** vencem?
 * O mesmo edital foi publicado duas vezes? O painel mostra uma vez e indica o outro número.
 * **O robô está funcionando?** O painel mostra há quanto tempo atualizou e como foram as últimas rodadas.
+* Como levar os editais para a **planilha de acompanhamento** da equipe? Marque os que interessam, ou exporte tudo o que está filtrado, para um arquivo do Excel já formatado.
 
 ## 🧭 Como Usar
 
 | Quero... | Como |
 |---|---|
 | **Só olhar os editais** | Abra o [painel](https://victor-ozores.github.io/Radar-PNCP/). Filtre por estado, prazo (de uma data a outra) ou valor. Toque no **?** para ver o que cada termo quer dizer. Cada edital leva ao PNCP. |
+| **Levar os editais para o Excel** | Na lista, marque os editais (ou use **Marcar todos os N da lista**) e clique em **Exportar para Excel**. Escolha entre só os marcados, todos os que estão no filtro ou todos os do painel. O arquivo `.xlsx` já vem formatado. |
 | **Receber o resumo no Telegram** | Faça uma cópia do projeto e crie o seu bot (uns 20 minutos, sem custo): [passo a passo](docs/setup-checklist.md). |
 | **Mudar o que o robô procura** | Edite o [`config.yaml`](config.yaml): estados, modalidades, palavras e faixa de valor. Não precisa mexer em código. |
 
@@ -95,8 +97,21 @@ Os termos ainda não foram calibrados com quem faz orçamentos de verdade (veja 
 | **Resumo** | Quantos editais abertos combinam com o perfil, o resumo do dia (prazos, estados e valores, escrito a partir dos próprios dados) e atalhos para os que vencem em até 7 dias |
 | **Robô em dia** | Painel de status do robô: se está em dia, há quanto tempo atualizou, taxa de sucesso, uma barra por rodada (as últimas 14) e o que a última rodada fez |
 | **Panorama** | Quatro gráficos que filtram a lista ao toque: prazo, valor, palavras do perfil e onde estão (estados e cidades) |
-| **Editais abertos** | Lista com busca e filtros (estado, prazo, valor, registro de preços). Cada cartão leva ao edital no PNCP |
+| **Editais abertos** | Lista com busca e filtros (estado, prazo, valor, registro de preços). Cada cartão leva ao edital no PNCP e tem uma caixa para marcar. Acima da lista, **Exportar para Excel** |
 | **Antes de usar** | Os avisos que importam (perfil de demonstração, confira no PNCP) e como o painel é calculado |
+
+## 🧩 É Uma Demonstração, Não Um Limite
+
+O painel e o arquivo do Excel mostram **só uma parte do que existe**. Para outro uso, o caminho é sempre o mesmo e não exige refazer o projeto:
+
+| De onde vem o dado | Exemplos | O que seria preciso |
+|---|---|---|
+| **Já aparece hoje** | órgão, estado, cidade, modalidade, número, valor, registro de preços, prazo, nota, palavras, link | nada |
+| **O robô já guarda, mas o painel ainda não mostra** | esfera do órgão (federal, estadual ou municipal), poder, modo de disputa, número do processo, amparo legal, unidade, data de publicação | levar o campo até o painel: vira coluna no Excel e filtro na lista |
+| **O PNCP informa, mas o robô ainda não lê** | outros campos da contratação | passar a ler o campo na busca, guardar e mostrar |
+| **Só está dentro do documento do edital** | exigências de atestado, planilhas, anexos | ler os documentos do edital (arquivos PDF): dá para fazer, é um trabalho maior |
+
+Se uma empresa pedir outro filtro ou outra coluna, o dado entra e passa a aparecer. A lista de colunas do Excel e a lista de filtros são montadas a partir de listas simples no código, então acrescentar uma é uma mudança localizada.
 
 ## 📸 Preview
 
@@ -106,6 +121,8 @@ Os termos ainda não foram calibrados com quem faz orçamentos de verdade (veja 
 <img src="./docs/img/painel_panorama.png" width="100%" alt="Panorama: gráficos de prazo, valor, palavras e onde estão os editais">
 <br><br>
 <img src="./docs/img/painel_lista.png" width="100%" alt="Lista de editais com os filtros ao lado">
+<br><br>
+<img src="./docs/img/painel_exportar.png" width="100%" alt="Editais marcados e o painel Exportar para Excel, com as três escolhas do que colocar no arquivo">
 <br><br>
 <img src="./docs/img/painel_celular.png" width="320" alt="O painel no celular">
 </div>
@@ -222,6 +239,8 @@ flowchart TD
 | Dar a nota por **regras que se explicam**, sem IA | Cada nota vem com os motivos; dá para calibrar o perfil olhando o `--dry-run`. Regras firmes separam obra de compra, locação e serviço de escritório (consultoria, fiscalização, projeto); os casos reais estão em `tests/fixtures/casos_reais_filtro.json` |
 | Nunca deixar o **token do Telegram** vazar | O token vai na URL da API; os logs do `httpx` ficam em WARNING e as mensagens de erro passam por filtro |
 | Escrever o **texto em caixa normal** só na tela | Igual no Telegram e na página (mesmas regras em Python e TypeScript, com testes dos dois lados). O texto guardado não muda |
+| Deixar a pessoa **escolher o que vai para o Excel**: só os marcados, todos os da lista ou todos os do painel | Empresa quer ora três editais, ora tudo o que filtrou por data e estado. Marcar é opcional: dá para exportar o filtro inteiro sem marcar nada, e "Marcar todos os N da lista" vale até para o que ainda não aparece na tela |
+| Gerar o arquivo **.xlsx já formatado**, com a biblioteca `write-excel-file`, carregada só quando se pede o arquivo | Comparei com a `exceljs`: ela tem mais recursos, mas pesa 256 KB compactados (esta, 20 KB) e deixa 2 alertas no `npm audit` (dependência `uuid`); esta tem zero alertas e foi atualizada em 2026. O filtro nas colunas e a lista de opções da coluna "Situação" não vêm nela: coloquei por conta própria, na ordem de elementos que o formato exige, com teste e conferência do arquivo em outro leitor |
 | Fazer o painel como **página própria** (GitHub Pages), e não em Power BI | O Power BI não atualiza sozinho na licença gratuita. A página lê o arquivo que o robô grava e se atualiza sem ninguém abrir nada |
 | Mostrar **um tema só**, escuro e suave | Dois temas custam mais código e mais processamento no navegador; as cores têm contraste e daltonismo conferidos |
 
@@ -231,7 +250,7 @@ Medido em 19 a 22/10/2026: cada execução diária acrescenta de 0,4 a 3 MB comp
 
 ### Stack
 
-Python 3.11+ (testes locais em 3.13; o CI usa 3.12 em Ubuntu e Windows), `httpx`, `duckdb`, `pydantic`, `pyyaml`, `pytest`, `ruff`. GitHub Actions para agendar e para o CI. Telegram Bot API para alertas. Painel: React, TypeScript e Vite, animações com Motion, testes com Vitest, publicado no GitHub Pages.
+Python 3.11+ (testes locais em 3.13; o CI usa 3.12 em Ubuntu e Windows), `httpx`, `duckdb`, `pydantic`, `pyyaml`, `pytest`, `ruff`. GitHub Actions para agendar e para o CI. Telegram Bot API para alertas. Painel: React, TypeScript e Vite, animações com Motion, arquivo do Excel com `write-excel-file`, testes com Vitest, publicado no GitHub Pages.
 
 ### Estrutura do repositório
 
@@ -298,7 +317,17 @@ Há exemplos em [`queries/`](queries): editais abertos, volume por UF, qualidade
 * O "resumo de hoje" e a frase de cada gráfico saem dos próprios dados, não de texto fixo: se os números mudam, a frase muda junto (`site/src/lib/historia.ts`, com testes).
 * Os termos técnicos têm um **?** com a explicação. Abre com o mouse, com o teclado (Tab) ou com o toque; Esc ou um novo toque fecha.
 * Os filtros ficam numa coluna ao lado da lista e acompanham a rolagem no computador; no celular ficam atrás do botão "Filtrar".
+* Cada cartão tem uma caixa de marcar. "Marcar os 30 que aparecem" marca a página; quando há mais, aparece "Marcar todos os N da lista" (como num e-mail). O que foi marcado continua marcado mesmo que o filtro mude.
 * A página tem um tema só, escuro e suave, sem botão para trocar. As animações respeitam a opção "reduzir movimento" do sistema.
+
+### O arquivo do Excel
+
+* **Aba "Editais"**, uma linha por edital: prazo (data e hora de verdade, no horário de Brasília), quantos dias faltam, se combina, objeto (em caixa normal), órgão, estado, município, modalidade, número, valor estimado (número, formatado em R$), registro de preços, palavras do perfil, "também publicado como" e o link do PNCP (clicável).
+* **Três colunas verdes em branco** para a equipe: *Situação* (com lista de opções: Analisar, Vou disputar, Descartado, Proposta enviada, Ganhou, Perdeu), *Responsável* e *Observações*.
+* **Formatação:** cabeçalho fixo, filtro em cada coluna, largura ajustada, linhas finas, e a coluna "Faltam (dias)" em vermelho até 2 dias e amarelo até 7, as mesmas cores da lista.
+* **Aba "Sobre este arquivo"**: quando foi gerado, de quando são os dados, o que foi exportado, quais filtros estavam ligados, o perfil usado e o aviso de que é uma demonstração.
+* **Como é feito:** a página monta o arquivo no navegador de quem clicou, sem servidor. A biblioteca só é baixada nesse momento (a página não fica mais pesada para quem só olha a lista). O código está em `site/src/lib/exportar.ts` (o que entra e como cada edital vira uma linha) e `site/src/lib/excel.ts` (o arquivo). Para acrescentar uma coluna, é uma linha na lista `COLUNAS`.
+* **Como foi conferido:** testes automáticos, e uma conferência no navegador de verdade: marcar, filtrar e baixar os quatro tipos de arquivo, e abrir cada um com outro leitor (openpyxl) para comparar número de linhas, links, ordem, formatos, filtro, lista de opções e a ordem dos elementos do arquivo. O Excel em si não foi aberto nesta máquina.
 
 ### Indicadores e números medidos
 
