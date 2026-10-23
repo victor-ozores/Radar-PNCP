@@ -1,29 +1,59 @@
-# Radar de Licitações PNCP
+<div align="center">
+<img src="./docs/img/painel.png" width="100%" alt="Radar de Licitações PNCP: resumo do dia, painel de status do robô e lista de editais com filtros">
+</div>
 
-> Todo dia, um robô lê as licitações novas do governo, separa as que combinam com o perfil de uma empresa e avisa no Telegram. Os editais também ficam num painel público, com filtros.
+<div align="center">
+
+# 📡 Radar de Licitações PNCP
+
+**Robô agendado que lê o PNCP todo dia, separa as obras e os serviços de engenharia que combinam com o perfil de uma empresa,
+avisa no Telegram e alimenta um painel público com busca e filtros.**
+Python + GitHub Actions + React, sem servidor e a custo zero.
+
+[![Dashboard Online](https://img.shields.io/badge/GitHub%20Pages-ABRIR%20DASHBOARD-3b82f6?style=for-the-badge&logo=githubpages&logoColor=white)](https://victor-ozores.github.io/Radar-PNCP/)
+[![GitHub](https://img.shields.io/badge/GitHub-Repo-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/victor-ozores/Radar-PNCP)
+[![License: MIT](https://img.shields.io/badge/License-MIT-94a3b8?style=for-the-badge)](./LICENSE)
 
 [![CI](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/ci.yml/badge.svg)](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/ci.yml)
 [![Pipeline diário](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/daily.yml/badge.svg)](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/daily.yml)
 ![Última execução](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fvictor-ozores%2FRadar-PNCP%2Fdata%2Fbadge.json)
 ![Custo](https://img.shields.io/badge/custo-R%24%200-brightgreen)
 
-### 👉 [Abrir o painel ao vivo](https://victor-ozores.github.io/Radar-PNCP/)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-victor--ozores-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/victor-ozores/)
+[![Portfolio](https://img.shields.io/badge/Portfolio-xperiun-6d28d9?style=for-the-badge&logo=googlechrome&logoColor=white)](https://app.xperiun.com/in/victor-ozores-2)
+[![GitHub](https://img.shields.io/badge/GitHub-victor--ozores-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/victor-ozores)
 
-[![Painel do Radar: resumo do dia, painel de status do robô, gráficos e lista de editais com filtros ao lado](docs/img/painel.png)](https://victor-ozores.github.io/Radar-PNCP/)
+</div>
 
-## Para que serve
+---
+
+## 📌 Resumo
 
 O **PNCP** (Portal Nacional de Contratações Públicas) reúne as licitações do país, mas **não avisa ninguém**. Quem monta propostas acaba abrindo vários portais todo dia, ou descobre o edital tarde demais.
 
-O Radar faz essa busca sozinho e entrega:
+O Radar faz essa busca sozinho: um robô agendado lê o PNCP, dá uma nota de 0 a 100 a cada edital, separa os que combinam com o perfil de uma empresa, avisa no Telegram e mantém um painel público com os que ainda estão abertos. Construí o projeto para mostrar, na prática, uma automação agendada de ponta a ponta: roda sozinha todos os dias, sem servidor e sem custo, e **avisa quando para de funcionar**.
 
-* 🆕 **Editais novos que combinam** com o perfil, com nota de 0 a 100 e o motivo da nota;
-* ⏳ **Prazos chegando**: os que ainda dão tempo de montar a proposta;
-* 🔎 **Um painel público** para consultar quando quiser, com busca e filtros.
+**Resultado da execução de 23/10/2026:** 9.788 editais abertos acompanhados em SP, RJ, MG e PR, dos quais 1.317 passaram pelo filtro do perfil (1.243 combinam e 74 combinam só em parte). A rodada leu 2.244 registros do PNCP (1.059 novos) em 20 minutos, conferiu um a um 95 editais com prazo próximo (1 já estava excluído) e não teve nenhum bloqueio da API. Desde 20/10 o robô rodou sozinho 4 vezes (20, 21, 22 e 23/10), todas com sucesso.
 
 > O perfil que vem no projeto é de **demonstração**: uma construtora de médio porte (obras e manutenção predial) em SP, RJ, MG e PR. O painel é um apoio, não uma recomendação: confira sempre o edital no PNCP.
 
-## Como usar
+## 🔗 Ver Dashboard Online
+
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-ABRIR%20DASHBOARD-3b82f6?style=for-the-badge&logo=githubpages&logoColor=white)](https://victor-ozores.github.io/Radar-PNCP/)
+
+Abre direto, sem login. A página não tem servidor: ela lê o arquivo que o robô grava a cada execução.
+
+---
+
+## 💡 O Que Ele Responde
+
+* Quais editais abertos **combinam com o perfil** e quais olhar primeiro (nota de 0 a 100, com o motivo da nota)?
+* Quais **vencem esta semana** e ainda dão tempo de montar a proposta?
+* **Onde estão** (estado e cidade), **quanto valem** e **em que prazo** vencem?
+* O mesmo edital foi publicado duas vezes? O painel mostra uma vez e indica o outro número.
+* **O robô está funcionando?** O painel mostra há quanto tempo atualizou e como foram as últimas rodadas.
+
+## 🧭 Como Usar
 
 | Quero... | Como |
 |---|---|
@@ -31,7 +61,29 @@ O Radar faz essa busca sozinho e entrega:
 | **Receber o resumo no Telegram** | Faça uma cópia do projeto e crie o seu bot (uns 20 minutos, sem custo): [passo a passo](docs/setup-checklist.md). |
 | **Mudar o que o robô procura** | Edite o [`config.yaml`](config.yaml): estados, modalidades, palavras e faixa de valor. Não precisa mexer em código. |
 
-## O que chega no Telegram
+## 📊 Seções do Painel
+
+| Seção | O que mostra |
+|---|---|
+| **Resumo** | Quantos editais abertos combinam com o perfil, o resumo do dia (prazos, estados e valores, escrito a partir dos próprios dados) e atalhos para os que vencem em até 7 dias |
+| **Robô em dia** | Painel de status do robô: se está em dia, há quanto tempo atualizou, taxa de sucesso, uma barra por rodada (as últimas 14) e o que a última rodada fez |
+| **Panorama** | Quatro gráficos que filtram a lista ao toque: prazo, valor, palavras do perfil e onde estão (estados e cidades) |
+| **Editais abertos** | Lista com busca e filtros (estado, prazo, valor, registro de preços). Cada cartão leva ao edital no PNCP |
+| **Antes de usar** | Os avisos que importam (perfil de demonstração, confira no PNCP) e como o painel é calculado |
+
+## 📸 Preview
+
+<div align="center">
+<img src="./docs/img/painel_robo.png" width="100%" alt="Painel de status do robô: selo Operacional, números, barras das últimas rodadas e o que a última rodada fez">
+<br><br>
+<img src="./docs/img/painel_panorama.png" width="100%" alt="Panorama: gráficos de prazo, valor, palavras e onde estão os editais">
+<br><br>
+<img src="./docs/img/painel_lista.png" width="100%" alt="Lista de editais com os filtros ao lado">
+<br><br>
+<img src="./docs/img/painel_celular.png" width="320" alt="O painel no celular">
+</div>
+
+## 📲 O que chega no Telegram
 
 Exemplo no formato atual, com os dados reais de 22/10/2026 (recortado):
 
@@ -59,11 +111,11 @@ Combina · Contratação de Empresa Especializada para Execução de Serviços d
 
 Como ler: **Combina muito** é nota 80 ou mais, **Combina** vai de 60 a 79 e **Combina em parte** de 40 a 59. Abaixo de 40 o robô não avisa.
 
-## Como funciona
+## ⚙️ Como Funciona
 
 ```mermaid
 flowchart LR
-    A["PNCP<br/>licitações do governo"] --> B["Robô diário<br/>lê, limpa e dá nota"]
+    A["PNCP<br/>licitações do governo"] --> B["Robô diário<br/>lê, limpa, dá nota<br/>e confere os prazos"]
     B --> C["Telegram<br/>resumo do dia"]
     B --> D[("Dados<br/>branch data")]
     D --> E["Painel público<br/>GitHub Pages"]
@@ -72,50 +124,52 @@ flowchart LR
 
 1. **Lê** o PNCP todo dia: os editais novos e os que mudaram (prazo prorrogado, suspensão, revogação).
 2. **Dá uma nota** de 0 a 100 a cada um, pelas palavras e pela faixa de valor do `config.yaml`. Não usa IA: são regras que dá para auditar.
-3. **Avisa** no Telegram e **atualiza o painel**.
-4. **Se vigia**: se o robô deixar de rodar, um alerta chega pelo Telegram e outro por e-mail.
+3. **Confere** no PNCP, um a um, os que vencem logo, para não mostrar prazo velho nem edital excluído.
+4. **Avisa** no Telegram e **atualiza o painel**.
+5. **Se vigia**: se o robô deixar de rodar, um alerta chega pelo Telegram e outro por e-mail.
 
 Agendado para 7h17, mas o GitHub tem entregado o horário com algumas horas de atraso (de 3 a 5,5 h); o resumo chega por volta do meio-dia.
 
-## Custa R$ 0 e respeita a LGPD
+## 💰 Custa R$ 0 e Respeita a LGPD
 
 * **Grátis:** GitHub (repositório público), API pública do PNCP, Telegram e Healthchecks.io (plano gratuito). Sem servidor e sem cartão.
 * **Só dados públicos:** a fonte trata de órgãos e contratações, não de pessoas. CPF, e-mail e telefone que apareçam em texto livre são removidos antes de gravar.
 
-## Quer ir mais fundo?
-
 <details>
-<summary><b>🔧 Detalhes técnicos</b> (fluxo completo, confiabilidade, decisões, como rodar)</summary>
+<summary><b>⚙️ Detalhes Técnicos</b> (fluxo completo, confiabilidade, decisões, como rodar)</summary>
 
 ### Fluxo completo
 
 ```mermaid
 flowchart TD
-    subgraph dia["Todo dia"]
-        A["Busca no PNCP<br/>novos dos últimos 3 dias<br/>e alterados de hoje e ontem"] --> B["Limpa<br/>só campos permitidos<br/>sem CPF, e-mail e telefone"]
+    subgraph dia["Todo dia (7h17)"]
+        A["Busca no PNCP<br/>novos dos últimos 3 dias<br/>e alterados de hoje e ontem"] --> B["Limpa cada registro<br/>só campos permitidos<br/>sem CPF, e-mail e telefone"]
         B --> C[("Grava em Parquet<br/>1 arquivo por dia")]
         C --> D["Dá nota de 0 a 100<br/>regras do config.yaml"]
-        D --> E["Confere no PNCP, um a um,<br/>os que vencem em até 3 dias"]
-        E --> F["Resumo no Telegram"]
-        F --> G["Gera painel.json e CSVs"]
-        G --> R["Atualiza o status<br/>status.json e selo"]
+        D --> E["Confere no PNCP, um a um,<br/>os que combinam e vencem em até 3 dias"]
+        E --> F["Monta o resumo e confere<br/>os de 'Prazos chegando'"]
+        F --> T["Envia ao Telegram"]
     end
-    subgraph dom["Todo domingo à noite"]
-        S["Conferência semanal<br/>acha editais excluídos<br/>ou com prazo prorrogado"] --> C
+    subgraph dom["Todo domingo (19h47)"]
+        S1["Conferência semanal<br/>relê as propostas abertas<br/>com prazo em até 14 dias<br/>limpa e grava"] --> S2["Confere no PNCP, um a um,<br/>os que o robô guarda como abertos<br/>e a lista não trouxe"]
     end
-    G --> H["Painel no GitHub Pages"]
-    R -.-> I["Vigias<br/>heartbeat a cada 6 h: alerta após 26 h<br/>Healthchecks.io: alerta por e-mail"]
+    T --> G["Registra a execução e gera os arquivos<br/>pipeline_runs, painel.json, CSVs,<br/>status.json e selo"]
+    S2 --> G
+    G --> P["Publica na branch data<br/>git push"]
+    P --> H["Painel no GitHub Pages<br/>lê o painel.json no navegador"]
+    P -.-> I["Vigias<br/>heartbeat a cada 6 h: alerta após 26 h<br/>Healthchecks.io: aviso por e-mail"]
+    P -.->|"se algo falhou"| X["🚨 Alerta de falha no Telegram<br/>com o link da execução"]
 ```
 
 1. **Busca** as contratações publicadas nos últimos 3 dias (cobre fim de semana e agendamento atrasado) para as UFs e modalidades do `config.yaml`, e **também as alteradas** hoje e ontem, mesmo que publicadas meses antes.
 2. **Limpa** cada registro: guarda só os campos de uma lista permitida e remove CPF, e-mail e telefone do texto livre.
 3. **Grava** em Parquet particionado por dia. Rodar duas vezes a mesma janela não muda nenhum byte.
-4. **Pontua** de 0 a 100 com regras do `config.yaml` e guarda o motivo de cada nota.
-5. **Confere no PNCP**, um a um, os editais que combinam e vencem em até 3 dias (até 100 consultas, o que vence primeiro antes) e, antes de listar, os de "Prazos chegando" (até 15 consultas): o excluído ou prorrogado é corrigido e sai da lista.
+4. **Pontua** de 0 a 100 com regras do `config.yaml`; os motivos de cada nota vão para o `editais.csv`.
+5. **Confere no PNCP**, um a um, os editais que combinam e vencem em até 3 dias (até 100 consultas, o que vence primeiro antes) e, antes de listar, os de "Prazos chegando" (até 15 consultas): o excluído ou prorrogado é corrigido e sai da lista. Se o PNCP para de responder, as duas conferências desistem sem marcar nada.
 6. **Avisa** no Telegram: novos relevantes, prazos que vencem em 2 a 7 dias (`alerta.prazo_minimo_dias`) e um aviso se alguma busca falhou.
-7. **Publica** `export/painel.json` (só os abertos que combinam, com prazo em até 30 dias) e os CSVs na branch `data`. A página lê o `painel.json` direto do navegador.
-8. **Registra** a execução em `pipeline_runs`, `status.json` e no selo do README.
-9. **Todo domingo à noite** (19:47, também atrasa) roda a **conferência semanal**: relê as propostas abertas até 14 dias e consulta no PNCP, um a um (até 150), os editais que o robô guarda como abertos e a listagem não trouxe.
+7. **Registra e gera os arquivos**: a execução entra em `pipeline_runs`, e saem o `export/painel.json` (os abertos que combinam, com prazo em até 30 dias), os CSVs, o `status.json` e o selo. Isso acontece mesmo quando alguma etapa falha, para a falha ficar registrada.
+8. **Publica** esses arquivos na branch `data`. A página lê o `painel.json` direto do navegador. Ao fim de uma rotina diária bem-sucedida, o robô avisa o Healthchecks.io.
+9. **Todo domingo à noite** (19:47, também atrasa) roda a **conferência semanal**: relê as propostas abertas até 14 dias e consulta no PNCP, um a um (até 150), os editais que o robô guarda como abertos e a listagem não trouxe. Ela não manda mensagem no Telegram; segue direto para o passo 7.
 
 ### Confiabilidade
 
@@ -129,22 +183,24 @@ flowchart TD
 
 ### Decisões
 
-| Decisão | Por quê |
+| O que decidi | Por quê |
 |---|---|
-| **DuckDB + Parquet**, sem arquivo `.duckdb` | SQL de verdade, custo zero, sem servidor. Parquet determinístico: reexecutar sem mudança não gera blobs novos no git |
-| **Dados na branch `data`**, código na `main` | A `main` fica limpa e a história dos dados pode ser compactada (veja *Limpeza* abaixo) |
+| Usar **DuckDB + Parquet**, sem arquivo `.duckdb` | SQL de verdade, custo zero, sem servidor. Parquet determinístico: reexecutar sem mudança não gera blobs novos no git |
+| Guardar os **dados na branch `data`** e o código na `main` | A `main` fica limpa e a história dos dados pode ser compactada (veja *Limpeza* abaixo) |
 | **Intervalo de 4 s entre chamadas** e espera de 30/60/120 s no 429 | A API devolve 429 (corpo HTML) após ~8 a 10 chamadas rápidas; medido em 19/10/2026 |
-| **Cliente isolado** em `pncp_client.py` | Só ele conhece URL e parâmetros; trocar de endpoint não espalha mudança |
-| **Upsert por `numeroControlePNCP`** | Editais mudam de situação e de prazo depois de publicados |
-| **Lê os alterados e confere no PNCP** | Só a listagem por publicação nunca revê um edital já guardado. Detalhes em [`docs/qualidade-dados-pncp.md`](docs/qualidade-dados-pncp.md) |
-| **Edital repetido: junta, não esconde** | O órgão às vezes publica o mesmo edital duas vezes (mesmo órgão, valor, prazo e texto). Os dois registros existem no PNCP, então o robô os junta num item só (o publicado por último é o principal) e mostra o número e o link do outro. No alerta, cada registro é conferido antes, para o link nunca apontar para um edital excluído |
-| **Nota por regras, explicável** | Cada nota vem com os motivos; dá para calibrar o perfil olhando o `--dry-run`. Regras firmes separam obra de compra, locação e serviço de escritório (consultoria, fiscalização, projeto); os casos reais estão em `tests/fixtures/casos_reais_filtro.json` |
-| **Token do Telegram nunca vaza** | O token vai na URL da API; os logs do `httpx` ficam em WARNING e as mensagens de erro passam por filtro |
-| **Texto da tela em caixa normal** | Só na exibição, igual no Telegram e na página (mesmas regras em Python e TypeScript, com testes dos dois lados). O texto guardado não muda |
+| Isolar o **cliente da API** em `pncp_client.py` | Só ele conhece URL e parâmetros; trocar de endpoint não espalha mudança |
+| Gravar por **upsert** em `numeroControlePNCP` | Editais mudam de situação e de prazo depois de publicados |
+| **Ler os alterados e conferir no PNCP** | Só a listagem por publicação nunca revê um edital já guardado. Detalhes em [`docs/qualidade-dados-pncp.md`](docs/qualidade-dados-pncp.md) |
+| **Juntar o edital repetido**, não esconder | O órgão às vezes publica o mesmo edital duas vezes (mesmo órgão, valor, prazo e texto). Os dois registros existem no PNCP, então o robô os junta num item só (o publicado por último é o principal) e mostra o número e o link do outro. No alerta, cada registro é conferido antes, para o link nunca apontar para um edital excluído |
+| Dar a nota por **regras que se explicam**, sem IA | Cada nota vem com os motivos; dá para calibrar o perfil olhando o `--dry-run`. Regras firmes separam obra de compra, locação e serviço de escritório (consultoria, fiscalização, projeto); os casos reais estão em `tests/fixtures/casos_reais_filtro.json` |
+| Nunca deixar o **token do Telegram** vazar | O token vai na URL da API; os logs do `httpx` ficam em WARNING e as mensagens de erro passam por filtro |
+| Escrever o **texto em caixa normal** só na tela | Igual no Telegram e na página (mesmas regras em Python e TypeScript, com testes dos dois lados). O texto guardado não muda |
+| Fazer o painel como **página própria** (GitHub Pages), e não em Power BI | O Power BI não atualiza sozinho na licença gratuita. A página lê o arquivo que o robô grava e se atualiza sem ninguém abrir nada |
+| Mostrar **um tema só**, escuro e suave | Dois temas custam mais código e mais processamento no navegador; as cores têm contraste e daltonismo conferidos |
 
 ### Limpeza da branch `data` (a cada 6 meses)
 
-Medido em 19 a 22/10/2026: cada execução diária acrescenta de 0,4 a 3 MB comprimidos (o dia de 22/10 mexeu em 53 arquivos por causa das atualizações: 3 MB). Com ~3 MB por dia são ~1,1 GB por ano, acima dos 1 GB que o GitHub recomenda, e quem clona o repositório baixa a história inteira. Por isso a limpeza é **semestral**: ~550 MB no pior caso. Também vale limpar antes se o tamanho passar de ~500 MB (campo `size` da API do repositório). Passo a passo na seção 6 do [`docs/setup-checklist.md`](docs/setup-checklist.md).
+Medido em 19 a 22/10/2026: cada execução diária acrescenta de 0,4 a 3 MB comprimidos (o dia de 22/10 mexeu em 53 arquivos por causa das atualizações: 3 MB). Com ~3 MB por dia são ~1,1 GB por ano, acima dos 1 GB que o GitHub recomenda, e quem clona o repositório baixa a história inteira. Por isso decidi fazer a limpeza **a cada 6 meses**: ~550 MB no pior caso. Também vale limpar antes se o tamanho passar de ~500 MB (campo `size` da API do repositório). Passo a passo na seção 6 do [`docs/setup-checklist.md`](docs/setup-checklist.md).
 
 ### Stack
 
@@ -215,25 +271,25 @@ Há exemplos em [`queries/`](queries): editais abertos, volume por UF, qualidade
 * O "resumo de hoje" e a frase de cada gráfico saem dos próprios dados, não de texto fixo: se os números mudam, a frase muda junto (`site/src/lib/historia.ts`, com testes).
 * Os termos técnicos têm um **?** com a explicação. Abre com o mouse, com o teclado (Tab) ou com o toque; Esc ou um novo toque fecha.
 * Os filtros ficam numa coluna ao lado da lista e acompanham a rolagem no computador; no celular ficam atrás do botão "Filtrar".
-* A página tem um tema só, escuro e suave, sem botão para trocar (cores conferidas para contraste e daltonismo). As animações respeitam a opção "reduzir movimento" do sistema.
+* A página tem um tema só, escuro e suave, sem botão para trocar. As animações respeitam a opção "reduzir movimento" do sistema.
 
 ### Indicadores e números medidos
 
 Cada execução vira uma linha em `pipeline_runs`: início, fim, duração, status (`success`, `partial`, `failed`), janela, buscas e falhas, chamadas à API, 429, linhas lidas/novas/atualizadas/inválidas, prazos e situações corrigidos, relevantes novos, avisos de qualidade, alerta enviado e erro.
 
-Até 22/10/2026 o robô rodou sozinho 3 vezes (20, 21 e 22/10), todas com sucesso. A de 22/10: 14 min, 129 chamadas à API, nenhum bloqueio 429, 2.143 editais lidos e 812 novos. **Horas economizadas** seguem como estimativa, com premissas ainda não validadas, em [`docs/metodologia-horas.md`](docs/metodologia-horas.md).
+Até 23/10/2026 o robô rodou sozinho 4 vezes (20, 21, 22 e 23/10), todas com sucesso. A de 23/10, a primeira com a conferência diária dos que vencem logo: 20 min, 228 chamadas à API, nenhum bloqueio 429, 2.244 editais lidos e 1.059 novos. A de 22/10 levou 14 min, com 129 chamadas. **Horas economizadas** seguem como estimativa, com premissas ainda não validadas, em [`docs/metodologia-horas.md`](docs/metodologia-horas.md).
 
 </details>
 
 <details>
-<summary><b>⚠️ Problemas que tivemos e limitações</b></summary>
+<summary><b>⚠️ Problemas que Apareceram e Limitações</b></summary>
 
-### O que deu errado no caminho e o que foi feito
+### O que deu errado no caminho e o que fiz
 
-| O que aconteceu | O que foi feito |
+| O que aconteceu | O que fiz |
 |---|---|
 | A API do PNCP bloqueia (erro 429) quem consulta rápido | Pausa de 4 s entre as chamadas e espera de 30, 60 e 120 s quando bloqueia. Desde então, nenhum bloqueio |
-| O GitHub atrasa o horário agendado em algumas horas (medido de 3 h 09 a 5 h 25) | Aceito. O vigia externo tem 7 h de folga para não dar alarme falso |
+| O GitHub atrasa o horário agendado em algumas horas (medido de 3 h 09 a 5 h 25) | Aceitei o atraso. O vigia externo tem 7 h de folga para não dar alarme falso |
 | Prazos prorrogados (cerca de 1% dos editais que vencem em 7 dias) não apareciam | O robô lê também os editais alterados e, aos domingos, confere um a um no PNCP os que a listagem não confirma |
 | Edital **excluído** do PNCP continuava no robô (2 de 837 em 22/10), e a lista de propostas do PNCP demora horas para mostrar uma exclusão ou prorrogação | Só a consulta individual vale. O robô a faz todo dia (os que combinam e vencem em até 3 dias), antes de cada alerta e todo domingo (até 14 dias): marca como "Excluída do PNCP" e tira das listas |
 | O mesmo edital aparecia duas vezes (o órgão republica com outro número; cerca de 3% dos que combinam) | O painel e o Telegram mostram uma vez, com o número e o link do outro registro |
@@ -241,13 +297,12 @@ Até 22/10/2026 o robô rodou sozinho 3 vezes (20, 21 e 22/10), todas com sucess
 | Consultoria, fiscalização e projeto apareciam como obra (2,6% dos relevantes) | Regra de "serviço de escritório": nota zero, a menos que o texto peça também a execução |
 | Valores simbólicos (R$ 0,04) | Abaixo de R$ 1 mil aparece "valor não informado" |
 | Textos em CAIXA ALTA e nomes de cidade sem acento | Só na tela e no Telegram: caixa normal e a cidade como o edital a traz. O original continua no PNCP |
-| O Power BI não atualiza sozinho na licença gratuita | Trocado por uma página no GitHub Pages |
 | O histórico dos dados cresce de 0,4 a 3 MB por dia | Limpeza da branch `data` a cada 6 meses |
 
 ### Limitações conhecidas
 
 * O perfil é de demonstração; os termos ainda não foram calibrados com uma pessoa de orçamentos.
-* A nota olha só o texto do objeto e o valor, não entende o sentido. Numa amostra de 40 editais relevantes (21/10/2026), 39 estavam claramente certos e 1 era duvidoso; o julgamento foi do Claude, ainda não revisado por quem faz orçamentos. A faixa de nota 40 a 59 é mais ruidosa.
+* A nota olha só o texto do objeto e o valor, não entende o sentido. Numa amostra de 40 editais relevantes (21/10/2026), 39 estavam claramente certos e 1 era duvidoso; essa conferência ainda não foi revisada por quem faz orçamentos. A faixa de nota 40 a 59 é mais ruidosa.
 * O robô só vê as UFs e modalidades do `config.yaml` (hoje SP, RJ, MG e PR; concorrência e pregão). Dispensas de licitação ficam de fora até o volume ser medido. O estado é o do órgão, que pode não ser o local da obra.
 * Obras abaixo de R$ 100 mil e acima de R$ 20 mi ficam fora, por desenho do perfil. Assuntos cujas palavras aparecem também fora de obra ("ponte", "drenagem", "esgotamento sanitário") foram testados e rejeitados por trazer lixo.
 * "Fornecimento e instalação de..." conta como serviço, mas pode ser equipamento. Um serviço sem relação pode passar quando o nome da secretaria traz "Obras" ou "Engenharia" no meio do texto.
@@ -257,10 +312,16 @@ Até 22/10/2026 o robô rodou sozinho 3 vezes (20, 21 e 22/10), todas com sucess
 
 </details>
 
-## Como foi feito
+## 🛠️ Como Foi Feito
 
-Construído com o **Claude Code**. O autor (Victor) definiu o problema, o público, as restrições (custo zero, repositório público, LGPD, Windows) e o perfil de interesse, e revisa o que é publicado. O Claude Code propôs a arquitetura, escreveu o código e os testes e validou o comportamento da API com chamadas reais, registrado em [`docs/qualidade-dados-pncp.md`](docs/qualidade-dados-pncp.md). A nota dos editais **não usa IA**.
+Projeto meu, de ponta a ponta. Defini o problema, o público, as restrições (custo zero, repositório público, LGPD, Windows), o perfil de interesse, as regras de nota e cada decisão da tabela acima, e revisei e aprovei tudo o que foi publicado. Usei o Claude Code como ferramenta de programação. O comportamento da API foi conferido com chamadas reais, registradas em [`docs/qualidade-dados-pncp.md`](docs/qualidade-dados-pncp.md). A nota dos editais **não usa IA**.
 
-## Licença
+---
 
-[MIT](LICENSE). Autor: Victor Amorim Ozores.
+<div align="center">
+
+Feito por **Victor Ozores** · [GitHub](https://github.com/victor-ozores) · [LinkedIn](https://linkedin.com/in/victor-ozores/)
+
+[MIT](LICENSE) · Autor: Victor Amorim Ozores
+
+</div>
