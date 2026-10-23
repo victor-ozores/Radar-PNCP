@@ -33,6 +33,18 @@ def cfg_pequena(cfg):
     c = cfg.model_copy(deep=True)
     c.ingestao.ufs = ["SP", "RJ"]
     c.ingestao.modalidades = [4, 6]
+    c.ingestao.conferencia_urgente_dias = (
+        0  # a conferência diária tem testes próprios (cfg_urgente)
+    )
+    return c
+
+
+@pytest.fixture
+def cfg_urgente(cfg_pequena):
+    """Como `cfg_pequena`, mas com a conferência diária dos que vencem em até 3 dias ligada."""
+    c = cfg_pequena.model_copy(deep=True)
+    c.ingestao.conferencia_urgente_dias = 3
+    c.ingestao.conferencias_urgentes_max = 100
     return c
 
 
@@ -802,3 +814,138 @@ def test_tres_registros_do_mesmo_edital_viram_um_com_e_mais_um(tmp_path, cfg_peq
     )
     texto = "\n".join(notifier.enviadas)
     assert texto.count("🏛") == 1 and texto.count("🔁") == 1 and " e mais 1" in texto
+
+
+# --------------------------------------------------------------------- conferência diária dos que vencem logo
+
+
+def _prorrogado(item, agora, dias=40):
+    return {
+        **item,
+        "dataEncerramentoProposta": (agora + timedelta(days=dias)).isoformat(timespec="seconds"),
+    }
+
+
+def _diaria(cfg, tmp_path, client, agora, notifier=None, **kw):
+    return run_pipeline(
+        cfg,
+        opts(tmp_path, **kw),
+        client=client,
+        notifier=notifier if notifier is not None else FakeNotifier(),
+        now=agora + timedelta(hours=1),
+    )
+
+
+def test_rotina_diaria_confere_quem_vence_em_ate_3_dias_e_corrige_o_guardado(
+    tmp_path, cfg_pequena, cfg_urgente, agora
+):
+    """A lista do PNCP demora horas para mostrar exclusão e prorrogação: só a consulta individual vale."""
+    itens = _abertos(tmp_path, cfg_pequena, agora, dias=3, relevantes=True)
+    excluido, prorrogado, *resto = itens
+    client = FakeClient(
+        itens, compras={_id(excluido): None, _id(prorrogado): _prorrogado(prorrogado, agora)}
+    )
+    notifier = FakeNotifier()
+    out = _diaria(cfg_urgente, tmp_path, client, agora, notifier)
+    rec, estado = out.record, _estado(tmp_path)
+
+    assert estado[_id(excluido)]["situacao_id"] == SITUACAO_EXCLUIDA
+    assert estado[_id(prorrogado)]["data_encerramento_proposta"] == agora + timedelta(days=40)
+    avisos = {k: v for k, v in rec.quality_warnings.items() if k.startswith("conferido_")}
+    assert avisos == {
+        "conferido_excluido": 1,
+        "conferido_atualizado": 1,
+        "conferido_igual": len(resto),
+    }
+    assert rec.prazos_alterados == 1 and rec.situacoes_alteradas == 1
+    # cada edital foi consultado uma vez só: o alerta não repete o que a conferência já fez
+    assert len(_compras_chamadas(client)) == len(itens)
+    # e o que saiu não é listado em "Prazos chegando"
+    texto = "\n".join(notifier.enviadas)
+    for fora in (excluido, prorrogado):
+        endereco = f"{fora['orgaoEntidade']['cnpj']}/{fora['anoCompra']}/{fora['sequencialCompra']}"
+        assert endereco not in texto
+
+
+def test_conferencia_diaria_so_olha_a_janela_e_o_que_combina_com_o_perfil(
+    tmp_path, cfg_pequena, cfg_urgente, agora
+):
+    longe = _abertos(tmp_path / "longe", cfg_pequena, agora, dias=10, relevantes=True)
+    client = FakeClient(longe)
+    _diaria(cfg_urgente, tmp_path / "longe", client, agora)
+    assert _compras_chamadas(client) == []  # vence daqui a 10 dias: fora da janela de 3
+
+    itens = _abertos(tmp_path / "perto", cfg_pequena, agora, dias=2)  # perto, mas texto sem relação
+    for i in itens:
+        i["objetoCompra"] = "Aquisição de papel sulfite e canetas"
+    client = FakeClient(itens)
+    _diaria(cfg_urgente, tmp_path / "perto", client, agora)
+    assert _compras_chamadas(client) == []  # não combina com o perfil: não vale uma consulta
+
+
+def test_conferencia_diaria_respeita_o_teto_e_confere_o_que_vence_primeiro(
+    tmp_path, cfg_pequena, cfg_urgente, agora
+):
+    itens = _abertos(tmp_path, cfg_pequena, agora, dias=3, relevantes=True)
+    for k, i in enumerate(itens):  # prazos diferentes: dá para saber quem vem primeiro
+        i["dataEncerramentoProposta"] = (agora + timedelta(days=2, hours=k)).isoformat(
+            timespec="seconds"
+        )
+    run_pipeline(  # guarda os novos prazos
+        cfg_pequena, opts(tmp_path), client=FakeClient(itens), notifier=FakeNotifier(), now=agora
+    )
+    cfg_urgente.ingestao.conferencias_urgentes_max = 5
+    client = FakeClient(itens)
+    out = _diaria(cfg_urgente, tmp_path, client, agora)
+
+    consultados = [c[2] for c in _compras_chamadas(client)]
+    esperados = [_id(i) for i in itens[:5]]  # os 5 que vencem primeiro
+    assert consultados[:5] == esperados
+    assert out.record.quality_warnings["conferencia_urgente_pendente"] == len(itens) - 5
+
+
+def test_pncp_fora_do_ar_na_conferencia_diaria_nao_derruba_nem_marca_nada(
+    tmp_path, cfg_pequena, cfg_urgente, agora
+):
+    itens = _abertos(tmp_path, cfg_pequena, agora, dias=3, relevantes=True)
+    client = FakeClient(itens, compras={_id(i): PncpServerError("fora do ar") for i in itens})
+    notifier = FakeNotifier()
+    out = _diaria(cfg_urgente, tmp_path, client, agora, notifier)
+
+    assert out.record.status == "success" and out.record.alert_sent  # o alerta sai do mesmo jeito
+    assert len(_compras_chamadas(client)) == 2  # duas respostas incertas seguidas: para
+    assert out.record.quality_warnings["conferido_incerto"] == 2
+    assert all(r["situacao_id"] == 1 for r in _estado(tmp_path).values())
+
+
+def test_conferencia_diaria_desligada_e_previa_nao_conferem(
+    tmp_path, cfg_pequena, cfg_urgente, agora
+):
+    itens = _abertos(tmp_path, cfg_pequena, agora, dias=3, relevantes=True)
+    desligada = cfg_urgente.model_copy(deep=True)
+    desligada.ingestao.conferencia_urgente_dias = 0
+    client = FakeClient(itens)
+    _diaria(desligada, tmp_path, client, agora)
+    # só a conferência do alerta (até 5 grupos listados + os que saem), nunca os 20 inteiros
+    assert len(_compras_chamadas(client)) < len(itens)
+
+    previa = FakeClient(itens)
+    _diaria(cfg_urgente, tmp_path, previa, agora, dry_run=True)
+    assert _compras_chamadas(previa) == []  # a prévia não grava, então também não confere
+
+
+def test_conferencia_diaria_vale_so_para_a_rotina_diaria(tmp_path, cfg_pequena, cfg_urgente, agora):
+    itens = _abertos(tmp_path, cfg_pequena, agora, dias=3, relevantes=True)
+    client = FakeClient(
+        []
+    )  # a listagem não traz nada: tudo seria "suspeito" na conferência semanal
+    run_pipeline(
+        cfg_urgente,
+        opts(tmp_path, modo="reconcile"),
+        client=client,
+        notifier=None,
+        now=agora + timedelta(hours=1),
+    )
+    chamadas = _compras_chamadas(client)
+    # a semanal confere por conta própria (cada edital uma vez), e não duas vezes por causa da diária
+    assert len(chamadas) == len({c[2] for c in chamadas}) == len(itens)

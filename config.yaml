@@ -22,6 +22,16 @@ ingestao:
   # 4x mais linhas que a de publicação (medido em 21/10/2026: 6.004 linhas em 3 dias), então o
   # período é menor. Se o robô ficar mais de 1 dia parado, rode `backfill` para recuperar.
   lookback_atualizacao_dias: 2
+  # Conferência semanal (`reconcile`) e conferência diária no PNCP, edital por edital: a lista de propostas
+  # abertas do PNCP demora horas para refletir uma exclusão ou uma prorrogação (medido em 22/10/2026).
+  reconciliacao_dias: 14    # semanal: relê as propostas abertas até daqui a N dias
+  conferencias_max: 150     # semanal: no máximo N consultas individuais por execução
+  conferencias_alerta_max: 15   # antes do alerta: consultas para "Prazos chegando"
+  # Todo dia: confere os que combinam e vencem em até N dias (0 desliga), o que vence primeiro antes.
+  # Medido em 22/10/2026: de 95 a 308 editais por dia (segunda-feira é o pior), então o teto limita o custo
+  # (de 12 a 23 minutos a mais na rotina, a 7 a 14 s por consulta).
+  conferencia_urgente_dias: 3
+  conferencias_urgentes_max: 100
   tamanho_pagina: 50        # limite da API: 10 a 50
   intervalo_minimo_s: 4.0   # a API devolve 429 se for acionada rápido demais
   backoff_429_s: [30, 60, 120]

@@ -176,8 +176,24 @@ def run_pipeline(
         if opts.modo == "reconcile" and not opts.dry_run:
             _reconciliar(cfg, client, store, ingerido, rec, now)
         if opts.modo == "daily":
+            conferidos, pncp_parou = (
+                (set(), False)
+                if opts.dry_run
+                else _conferir_urgentes(cfg, client, store, scorer, rec, now)
+            )
             outcome.mensagens = _alertar(
-                cfg, opts, client, store, scorer, ingerido, rec, now, notifier, outcome
+                cfg,
+                opts,
+                client,
+                store,
+                scorer,
+                ingerido,
+                rec,
+                now,
+                notifier,
+                outcome,
+                conferidos,
+                pncp_parou,
             )
     except Exception as exc:  # registra a falha antes de propagar
         erro = exc
@@ -361,26 +377,107 @@ def _reconciliar(
         ),
         key=lambda r: (r["data_encerramento_proposta"], r["id"]),  # o que vence antes primeiro
     )
+    contagem, pendentes, _, _ = _conferir_lote(
+        suspeitos, ing.conferencias_max, client, store, rec, now
+    )
+    _soma_conferidos(rec, contagem)
+    if pendentes:
+        rec.quality_warnings["conferencia_pendente"] = pendentes
+    log.info(
+        "conferência no PNCP concluída",
+        extra={
+            "ctx": {
+                "suspeitos": len(suspeitos),
+                "conferidos": len(suspeitos) - pendentes,
+                **contagem,
+            }
+        },
+    )
+
+
+def _conferir_lote(
+    linhas: list[dict[str, Any]],
+    maximo: int,
+    client: PncpClient,
+    store: Store,
+    rec: RunRecord,
+    now: datetime,
+) -> tuple[Counter[str], int, set[str], bool]:
+    """Confere no PNCP, uma a uma e na ordem dada, até ``maximo`` consultas.
+
+    O que mudou vai para os números da execução. Para depois de duas respostas incertas seguidas (PNCP
+    lento ou bloqueando). Devolve a contagem por resultado, quantas linhas ficaram sem conferir, os
+    ids que o PNCP respondeu com certeza (iguais, atualizados ou excluídos) e se ele parou de responder.
+    """
     contagem: Counter[str] = Counter()
+    certos: set[str] = set()
     incertos_seguidos = 0
-    conferidos = 0
-    for r in suspeitos[: ing.conferencias_max]:
+    feitas = 0
+    for r in linhas[:maximo]:
         c = conferir_no_pncp(client, store, r, now)
-        conferidos += 1
+        feitas += 1
         contagem[c.resultado] += 1
         rec.rows_updated += len(c.gravado.updated_ids)
         rec.prazos_alterados += c.gravado.prazo_alterado
         rec.situacoes_alteradas += c.gravado.situacao_alterada
+        if c.resultado != INCERTO:
+            certos.add(r["id"])
         incertos_seguidos = incertos_seguidos + 1 if c.resultado == INCERTO else 0
         if incertos_seguidos >= INCERTOS_SEGUIDOS_PARA_PARAR:
             break
-    rec.quality_warnings.update({f"conferido_{k}": n for k, n in contagem.items()})
-    if len(suspeitos) > conferidos:
-        rec.quality_warnings["conferencia_pendente"] = len(suspeitos) - conferidos
-    log.info(
-        "conferência no PNCP concluída",
-        extra={"ctx": {"suspeitos": len(suspeitos), "conferidos": conferidos, **contagem}},
+    return contagem, len(linhas) - feitas, certos, incertos_seguidos >= INCERTOS_SEGUIDOS_PARA_PARAR
+
+
+def _soma_conferidos(rec: RunRecord, contagem: Counter[str]) -> None:
+    """Acumula nos avisos de qualidade da execução o que cada conferência encontrou."""
+    for resultado, n in contagem.items():
+        chave = f"conferido_{resultado}"
+        rec.quality_warnings[chave] = rec.quality_warnings.get(chave, 0) + n
+
+
+def _conferir_urgentes(
+    cfg: Config,
+    client: PncpClient,
+    store: Store,
+    scorer: Scorer,
+    rec: RunRecord,
+    now: datetime,
+) -> tuple[set[str], bool]:
+    """Todo dia, confere no PNCP os editais que combinam e vencem logo (o que vence primeiro antes).
+
+    A lista do PNCP demora horas para mostrar uma exclusão ou prorrogação, e quem age num edital de
+    amanhã não pode ter o prazo errado. Devolve os ids conferidos com certeza, para o alerta não
+    consultar de novo, e se o PNCP parou de responder (então o alerta também não insiste).
+    """
+    ing = cfg.ingestao
+    if ing.conferencia_urgente_dias <= 0 or ing.conferencias_urgentes_max <= 0:
+        return set(), False
+    ate = now + timedelta(days=ing.conferencia_urgente_dias)
+    guardados = store.current_state(
+        "WHERE data_encerramento_proposta >= ? AND data_encerramento_proposta <= ?", [now, ate]
     )
+    urgentes = sorted(
+        (r for r in guardados if not edital_inativo(r) and scorer.score(r, now).relevante),
+        key=lambda r: (r["data_encerramento_proposta"], r["id"]),
+    )
+    contagem, pendentes, certos, parou = _conferir_lote(
+        urgentes, ing.conferencias_urgentes_max, client, store, rec, now
+    )
+    _soma_conferidos(rec, contagem)
+    if pendentes:
+        rec.quality_warnings["conferencia_urgente_pendente"] = pendentes
+    log.info(
+        "conferência dos que vencem logo concluída",
+        extra={
+            "ctx": {
+                "urgentes": len(urgentes),
+                "conferidos": len(urgentes) - pendentes,
+                "pncp_parou": parou,
+                **contagem,
+            }
+        },
+    )
+    return certos, parou
 
 
 def _conferir_vencendo(
@@ -389,7 +486,10 @@ def _conferir_vencendo(
     store: Store,
     scorer: Scorer,
     cfg: Config,
+    rec: RunRecord,
     ja_no_resumo: set[str],
+    ja_conferidos: set[str],
+    pncp_parou: bool,
     now: datetime,
 ) -> tuple[list[Item], int]:
     """Confere no PNCP os primeiros de "Prazos chegando" antes de listá-los.
@@ -399,23 +499,32 @@ def _conferir_vencendo(
     excluído. Registro excluído, ou prorrogado para fora da janela, sai (e o guardado é corrigido).
     O publicado por último que valer é o principal. Só quando a conferência não rola (sem consultas
     sobrando, ou o PNCP não responde) o guardado é aceito como está. Grupo em que nenhum registro vale
-    sai da lista. Devolve a lista e quantos editais ficaram na janela, para o "mais N" da mensagem.
+    sai da lista. Os que a conferência diária dos que vencem logo já confirmou hoje (``ja_conferidos``)
+    não são consultados de novo, e se ela viu o PNCP parar de responder (``pncp_parou``) esta também não
+    insiste. Devolve a lista e quantos editais ficaram na janela, para o "mais N" da mensagem.
     """
     alerta = cfg.alerta
     orcamento = cfg.ingestao.conferencias_alerta_max
     escolhidos: list[Item] = []
+    contagem: Counter[str] = Counter()
     fora = 0
     consultas = 0
-    incertos_seguidos = 0
+    incertos_seguidos = INCERTOS_SEGUIDOS_PARA_PARAR if pncp_parou else 0
     for grupo in grupos:  # em ordem de prazo
         if len(escolhidos) >= alerta.max_vencendo:
             break
         vivos: list[Item] = []  # conferidos e valem
         sem_conferir: list[Item] = []  # sem consulta, ou o PNCP não respondeu
         for item in grupo:
-            if consultas < orcamento and incertos_seguidos < INCERTOS_SEGUIDOS_PARA_PARAR:
+            if item.row["id"] in ja_conferidos:
+                vivos.append(item)  # conferido hoje, mais cedo; a linha já vem corrigida
+            elif consultas < orcamento and incertos_seguidos < INCERTOS_SEGUIDOS_PARA_PARAR:
                 consultas += 1
                 c = conferir_no_pncp(client, store, item.row, now)
+                contagem[c.resultado] += 1
+                rec.rows_updated += len(c.gravado.updated_ids)
+                rec.prazos_alterados += c.gravado.prazo_alterado
+                rec.situacoes_alteradas += c.gravado.situacao_alterada
                 incertos_seguidos = incertos_seguidos + 1 if c.resultado == INCERTO else 0
                 if c.resultado == EXCLUIDO:
                     continue
@@ -434,6 +543,7 @@ def _conferir_vencendo(
         principal, *outros = validos
         principal.iguais = [i.row for i in outros]
         escolhidos.append(principal)
+    _soma_conferidos(rec, contagem)
     return escolhidos, len(grupos) - fora
 
 
@@ -498,6 +608,8 @@ def _alertar(
     now: datetime,
     notifier: TelegramNotifier | None,
     outcome: Outcome,
+    conferidos: set[str],
+    pncp_parou: bool,
 ) -> list[str]:
     fetched, new_ids = ingerido.linhas, ingerido.new_ids
     alerta = cfg.alerta
@@ -533,7 +645,7 @@ def _alertar(
             vencendo.append(grupo[0])
     else:
         vencendo, vencendo_total = _conferir_vencendo(
-            grupos, client, store, scorer, cfg, ids_no_resumo, now
+            grupos, client, store, scorer, cfg, rec, ids_no_resumo, conferidos, pncp_parou, now
         )
 
     resumo = Resumo(

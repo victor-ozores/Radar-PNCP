@@ -23,7 +23,7 @@ def cfg_pequena(cfg):
 def edital(base, numero, objeto, prazo, **extra):
     item = dict(base)
     item.update(
-        numeroControlePNCP=f"1000000000{numero:04d}-1-000{numero}/2026",
+        numeroControlePNCP=f"1000000000{numero:04d}-1-{numero:06d}/2026",  # id como o do PNCP
         objetoCompra=objeto,
         valorTotalEstimado=900_000.0,
         dataEncerramentoProposta=prazo.isoformat(timespec="seconds"),

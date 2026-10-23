@@ -44,7 +44,7 @@ env:
 jobs:
   pipeline:
     runs-on: ubuntu-latest
-    timeout-minutes: 120 # a rotina diária leva ~15 min; a conferência de domingo, de 40 a 80
+    timeout-minutes: 120 # a rotina diária leva de 15 a 70 min (a API oscila); a conferência de domingo, de 40 a 80
     steps:
       - name: Código (main)
         uses: actions/checkout@v4

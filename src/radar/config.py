@@ -31,6 +31,12 @@ class Ingestao(_Base):
     conferencias_max: int = Field(default=150, ge=0, le=500)
     # "Prazos chegando" confere no PNCP cada edital antes de listá-lo (no máximo N consultas por dia)
     conferencias_alerta_max: int = Field(default=15, ge=0, le=50)
+    # Todo dia confere no PNCP, um a um, os editais que combinam e vencem nos próximos N dias, do que
+    # vence primeiro ao que vence depois, até `conferencias_urgentes_max` consultas. A lista do PNCP
+    # demora horas para refletir uma exclusão ou prorrogação, e quem age num edital de amanhã não pode
+    # ter o prazo errado. 0 desliga.
+    conferencia_urgente_dias: int = Field(default=3, ge=0, le=14)
+    conferencias_urgentes_max: int = Field(default=100, ge=0, le=300)
     tamanho_pagina: int = Field(default=50, ge=10, le=50)
     intervalo_minimo_s: float = Field(default=4.0, ge=1.0)
     backoff_429_s: list[float] = Field(default_factory=lambda: [30, 60, 120], min_length=1)
