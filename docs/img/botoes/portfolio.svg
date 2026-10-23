@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="194" height="28" viewBox="0 0 194 28" role="img" aria-label="Portfólio de Victor Ozores na Xperiun">
+  <title>Portfólio de Victor Ozores na Xperiun</title>
+  <clipPath id="c"><rect width="194" height="28" rx="3"/></clipPath>
+  <g clip-path="url(#c)">
+    <rect width="106" height="28" fill="#555555"/>
+    <rect x="106" width="88" height="28" fill="#6d28d9"/>
+  </g>
+  <g fill="#ffffff" font-family="'Segoe UI', Arial, Helvetica, sans-serif" font-size="10.5" font-weight="700" text-anchor="start">
+    <text x="13" y="18" textLength="80" lengthAdjust="spacingAndGlyphs">PORTFOLIO</text>
+    <text x="119" y="18" textLength="62" lengthAdjust="spacingAndGlyphs">XPERIUN</text>
+  </g>
+</svg>

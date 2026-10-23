@@ -10,18 +10,19 @@
 avisa no Telegram e alimenta um painel público com busca e filtros.**
 Python + GitHub Actions + React, sem servidor e a custo zero.
 
-[![Dashboard Online](https://img.shields.io/badge/GitHub%20Pages-ABRIR%20DASHBOARD-3b82f6?style=for-the-badge&logo=githubpages&logoColor=white)](https://victor-ozores.github.io/Radar-PNCP/)
-[![GitHub](https://img.shields.io/badge/GitHub-Repo-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/victor-ozores/Radar-PNCP)
-[![License: MIT](https://img.shields.io/badge/License-MIT-94a3b8?style=for-the-badge)](./LICENSE)
+[![Abrir o dashboard](docs/img/botoes/abrir-dashboard.svg)](https://victor-ozores.github.io/Radar-PNCP/)
 
-[![CI](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/ci.yml/badge.svg)](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/ci.yml)
-[![Pipeline diário](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/daily.yml/badge.svg)](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/daily.yml)
-![Última execução](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fvictor-ozores%2FRadar-PNCP%2Fdata%2Fbadge.json)
-![Custo](https://img.shields.io/badge/custo-R%24%200-brightgreen)
+&nbsp;
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-victor--ozores-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/victor-ozores/)
-[![Portfolio](https://img.shields.io/badge/Portfolio-xperiun-6d28d9?style=for-the-badge&logo=googlechrome&logoColor=white)](https://app.xperiun.com/in/victor-ozores-2)
-[![GitHub](https://img.shields.io/badge/GitHub-victor--ozores-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/victor-ozores)
+[![Repositório no GitHub](docs/img/botoes/repo.svg)](https://github.com/victor-ozores/Radar-PNCP)&nbsp;&nbsp;&nbsp;[![Licença MIT](docs/img/botoes/licenca.svg)](./LICENSE)&nbsp;&nbsp;&nbsp;![Custo: R$ 0](docs/img/botoes/custo.svg)
+
+&nbsp;
+
+[![CI](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/ci.yml/badge.svg)](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/ci.yml)&nbsp;&nbsp;[![Pipeline diário](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/daily.yml/badge.svg)](https://github.com/victor-ozores/Radar-PNCP/actions/workflows/daily.yml)&nbsp;&nbsp;![Última execução](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fvictor-ozores%2FRadar-PNCP%2Fdata%2Fbadge.json)
+
+&nbsp;
+
+[![LinkedIn de Victor Ozores](docs/img/botoes/linkedin.svg)](https://linkedin.com/in/victor-ozores/)&nbsp;&nbsp;&nbsp;[![Portfólio na Xperiun](docs/img/botoes/portfolio.svg)](https://app.xperiun.com/in/victor-ozores-2)&nbsp;&nbsp;&nbsp;[![GitHub de Victor Ozores](docs/img/botoes/github.svg)](https://github.com/victor-ozores)
 
 </div>
 
@@ -35,15 +36,41 @@ O Radar faz essa busca sozinho: um robô agendado lê o PNCP, dá uma nota de 0 
 
 **Resultado da execução de 23/10/2026:** 9.788 editais abertos acompanhados em SP, RJ, MG e PR, dos quais 1.317 passaram pelo filtro do perfil (1.243 combinam e 74 combinam só em parte). A rodada leu 2.244 registros do PNCP (1.059 novos) em 20 minutos, conferiu um a um 95 editais com prazo próximo (1 já estava excluído) e não teve nenhum bloqueio da API. Desde 20/10 o robô rodou sozinho 4 vezes (20, 21, 22 e 23/10), todas com sucesso.
 
-> O perfil que vem no projeto é de **demonstração**: uma construtora de médio porte (obras e manutenção predial) em SP, RJ, MG e PR. O painel é um apoio, não uma recomendação: confira sempre o edital no PNCP.
+> O perfil que vem no projeto é de **demonstração**: uma construtora de médio porte (obras e manutenção predial) em SP, RJ, MG e PR. [Veja abaixo exatamente o que ele considera.](#-qual-perfil-está-configurado) O painel é um apoio, não uma recomendação: confira sempre o edital no PNCP.
 
 ## 🔗 Ver Dashboard Online
 
-[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-ABRIR%20DASHBOARD-3b82f6?style=for-the-badge&logo=githubpages&logoColor=white)](https://victor-ozores.github.io/Radar-PNCP/)
+[![Abrir o dashboard](docs/img/botoes/abrir-dashboard.svg)](https://victor-ozores.github.io/Radar-PNCP/)
 
 Abre direto, sem login. A página não tem servidor: ela lê o arquivo que o robô grava a cada execução.
 
 ---
+
+## 🎯 Qual Perfil Está Configurado
+
+O robô procura o que uma empresa **fictícia** gostaria de disputar: uma **construtora de médio porte, de engenharia civil e manutenção predial**, inspirada no dia a dia do setor de orçamentos. Tudo isso fica no [`config.yaml`](config.yaml) e dá para trocar sem mexer em código. O painel e o Telegram mostram só o que combina com este perfil.
+
+| O que o robô considera | Perfil de demonstração |
+|---|---|
+| **Estados** | SP, RJ, MG e PR (é o estado do órgão que publica o edital) |
+| **Modalidades** | Concorrência (eletrônica e presencial) e pregão (eletrônico e presencial). Dispensa de licitação fica de fora |
+| **Valor estimado** | De R$ 100 mil a R$ 20 milhões. Fora dessa faixa a nota cai; sem valor informado, o valor não conta nem a favor nem contra |
+| **Prazo** | Só editais ainda abertos. O painel mostra os que vencem em até 30 dias |
+| **Palavras que o robô procura** (valem mais) | obra, reforma, construção, edificação, engenharia, manutenção predial, instalações elétricas e hidráulicas, climatização, impermeabilização, pavimentação, recapeamento, calçamento, demolição, restauro, ampliação, muro, terraplenagem, rede coletora |
+| **Palavras que ajudam menos** | ar-condicionado, elevador, pintura, hidráulica, gerador, subestação, para-raios, extintor, telhado, cobertura, piso, esquadria, calçada |
+| **Palavras que derrubam a nota** | medicamento, uniforme, merenda, material de escritório, combustível, passagem aérea, pneu, material hospitalar, exame laboratorial, informática, drone, aquisição… |
+| **O que fica de fora, de propósito** | **Compra e locação** (o texto pede aquisição, fornecimento ou locação) e **serviço de escritório** (consultoria, fiscalização, projeto) sem execução de obra. Esses recebem nota zero |
+
+**Como a nota de 0 a 100 é somada:** cada palavra forte vale +35 (até 70) e cada palavra fraca +8 (até 16); palavra que derruba tira 40; o estado dá de +6 a +10 (SP +10, RJ e MG +8, PR +6); concorrência dá +10 e pregão +5; valor dentro da faixa dá +15 e fora tira 15. A soma é limitada entre 0 e 100. De 80 para cima é **Combina muito**, de 60 a 79 é **Combina**, de 40 a 59 é **Combina em parte**, e abaixo de 40 o edital não entra.
+
+Dois exemplos, calculados pelo próprio robô:
+
+| Edital | Conta | Resultado |
+|---|---|---|
+| "Execução da obra de construção do novo Fórum da Comarca de São João do Paraíso" (MG, concorrência eletrônica, R$ 11,7 mi) | obra + construção +70, MG +8, concorrência +10, valor na faixa +15 = 103, limitado a 100 | **Combina muito** |
+| "Contratação de empresa para pintura e troca de telhado da escola municipal" (SP, pregão eletrônico, R$ 180 mil; texto de exemplo) | pintura + telhado +16, SP +10, pregão +5, valor na faixa +15 = 46 | **Combina em parte** |
+
+Os termos ainda não foram calibrados com quem faz orçamentos de verdade (veja as limitações). Para outro perfil, edite o `config.yaml` e confira a prévia com `--dry-run`, sem enviar nada.
 
 ## 💡 O Que Ele Responde
 

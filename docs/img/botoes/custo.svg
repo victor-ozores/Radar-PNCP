@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="132" height="28" viewBox="0 0 132 28" role="img" aria-label="Custo: R$ 0">
+  <title>Custo: R$ 0</title>
+  <clipPath id="c"><rect width="132" height="28" rx="3"/></clipPath>
+  <g clip-path="url(#c)">
+    <rect width="70" height="28" fill="#555555"/>
+    <rect x="70" width="62" height="28" fill="#2ea043"/>
+  </g>
+  <g fill="#ffffff" font-family="'Segoe UI', Arial, Helvetica, sans-serif" font-size="10.5" font-weight="700" text-anchor="start">
+    <text x="13" y="18" textLength="44" lengthAdjust="spacingAndGlyphs">CUSTO</text>
+    <text x="83" y="18" textLength="36" lengthAdjust="spacingAndGlyphs">R$ 0</text>
+  </g>
+</svg>
