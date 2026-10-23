@@ -6,6 +6,10 @@ precisa ver: os editais **abertos, ativos e que combinam com o perfil**, com pra
 que já venceu) a página refaz na hora, por isso os prazos vão como data e hora absolutas, com o
 fuso de Brasília (``-03:00``). O edital que o órgão publicou duas vezes vai uma vez só, com os
 outros registros dele em ``repetidos`` (veja ``radar.repetidos``).
+
+O objeto e o nome do órgão vão resumidos (a lista mostra só o começo). Quando o texto foi cortado, o
+original vai também em ``objeto_completo`` e ``orgao_completo``, para a exportação para o Excel
+levar o texto inteiro; quando não foi cortado, o campo nem aparece (o arquivo não cresce à toa).
 """
 
 from __future__ import annotations
@@ -25,6 +29,7 @@ from radar.store import Store
 VERSAO = 1
 JANELA_DIAS = 30  # a carga inicial só cobre prazos de até 30 dias; o painel diz o mesmo
 RESUMO_MAX = 220
+ORGAO_MAX = 90
 EXECUCOES_NO_PAINEL = 14
 
 
@@ -96,10 +101,12 @@ def build_painel(store: Store, scorer: Scorer, cfg: Config, now: datetime) -> di
     for grupo in repetidos.agrupar(relevantes, lambda par: par[0]):
         (r, res), *outros = grupo
         valor = r["valor_estimado"]
+        objeto = corta_texto(r["objeto"], RESUMO_MAX)
+        orgao = corta_texto(r["orgao_razao_social"], ORGAO_MAX)
         edital = {
             "id": r["id"],
-            "objeto": corta_texto(r["objeto"], RESUMO_MAX),
-            "orgao": corta_texto(r["orgao_razao_social"], 90),
+            "objeto": objeto,
+            "orgao": orgao,
             "uf": r["uf"],
             "municipio": r["municipio"],
             "modalidade": (r["modalidade_nome"] or "").replace(" - ", " "),
@@ -113,6 +120,11 @@ def build_painel(store: Store, scorer: Scorer, cfg: Config, now: datetime) -> di
             "termos": [_termo_legivel(cfg, t) for t in res.fortes + res.fracos],
             "link": pncp_url(r),
         }
+        # o texto inteiro só quando o resumo cortou alguma coisa
+        if (r["objeto"] or "").strip() != objeto:
+            edital["objeto_completo"] = r["objeto"].strip()
+        if (r["orgao_razao_social"] or "").strip() != orgao:
+            edital["orgao_completo"] = r["orgao_razao_social"].strip()
         if outros:
             edital["repetidos"] = [
                 {

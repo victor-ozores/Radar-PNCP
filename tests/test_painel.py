@@ -6,7 +6,15 @@ from datetime import datetime, timedelta
 import pytest
 
 from helpers import FakeClient, FakeNotifier, load_sample_items
-from radar.painel import JANELA_DIAS, _robo, build_painel, iso_br, rotulo_nota
+from radar.painel import (
+    JANELA_DIAS,
+    ORGAO_MAX,
+    RESUMO_MAX,
+    _robo,
+    build_painel,
+    iso_br,
+    rotulo_nota,
+)
 from radar.pipeline import PipelineError, RunOptions, run_pipeline
 from radar.scoring import Scorer
 from radar.store import Store
@@ -87,6 +95,26 @@ def test_campos_e_fuso_do_painel(tmp_path, cfg_pequena, agora):
     assert em_3_dias["combina"] in {"muito", "combina", "parcial"} and 0 < em_3_dias["nota"] <= 100
     assert em_20_dias["registro_de_precos"] is True and em_3_dias["registro_de_precos"] is False
     assert em_3_dias["numero"] == "CCE28/2026CJ"  # o número do edital no órgão, como no Telegram
+
+
+def test_texto_longo_vai_resumido_e_inteiro_so_quando_foi_cortado(tmp_path, cfg_pequena, agora):
+    base = load_sample_items()[0]
+    longo = "Contratação de empresa especializada para a execução de obras de reforma predial " * 8
+    orgao_longo = "SECRETARIA MUNICIPAL DE OBRAS, INFRAESTRUTURA, HABITAÇÃO E DESENVOLVIMENTO URBANO DO MUNICÍPIO DE EXEMPLO"
+    itens = [
+        edital(base, 1, longo, agora + timedelta(days=3),
+               orgaoEntidade={**base["orgaoEntidade"], "razaoSocial": orgao_longo}),
+        edital(base, 2, "Execução de obras de reforma predial da escola municipal", agora + timedelta(days=5)),
+    ]  # fmt: skip
+    roda(tmp_path, cfg_pequena, itens, agora)
+    cortado, curto = le_painel(tmp_path)["editais"]
+
+    assert cortado["objeto"].endswith("…") and len(cortado["objeto"]) <= RESUMO_MAX
+    assert cortado["objeto_completo"] == longo.strip()  # o texto inteiro, sem perder nada
+    assert cortado["orgao"].endswith("…") and len(cortado["orgao"]) <= ORGAO_MAX
+    assert cortado["orgao_completo"] == orgao_longo
+    # o que cabe no resumo não repete o texto: o arquivo não cresce à toa
+    assert "objeto_completo" not in curto and "orgao_completo" not in curto
 
 
 def test_edital_publicado_duas_vezes_aparece_uma_vez_com_o_numero_e_o_link_do_outro(
