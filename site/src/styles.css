@@ -1550,6 +1550,39 @@ section[id] {
   border-color: var(--borda-forte);
 }
 
+.edital-marcado,
+.edital-marcado:hover {
+  background: color-mix(in srgb, var(--acento-suave) 45%, var(--superficie));
+  border-color: color-mix(in srgb, var(--acento) 70%, transparent);
+}
+
+/* celular: a caixa de marcar e a faixa do prazo lado a lado; no computador a caixa fica em cima do quadrado */
+.edital-lado {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+}
+
+.edital-marca {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px; /* alvo de toque confortável; o desenho é menor */
+  height: 44px;
+  margin: -8px 0 -8px -10px;
+  cursor: pointer;
+}
+
+.edital-marca input,
+.marcar-pagina input,
+.opcao input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--acento-forte);
+  cursor: pointer;
+}
+
 /* celular: uma faixa com "23 OUT 07h59 amanhã"; a partir de 720 px vira o quadradinho de calendário */
 .prazo-bloco {
   display: flex;
@@ -1725,6 +1758,189 @@ section[id] {
   background: var(--superficie);
   border: 1px dashed var(--borda-forte);
   border-radius: var(--r-grande);
+}
+
+/* ---------- marcar editais e exportar para o Excel */
+
+.selecao {
+  display: grid;
+  gap: var(--e2);
+}
+
+.selecao-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e2) var(--e4);
+  padding: var(--e2) var(--e4);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--r-grande);
+}
+
+.marcar-pagina {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e3);
+  min-height: 44px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.marcados {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--e2);
+  min-width: 9rem;
+  color: var(--tinta-2);
+  font-size: 0.9rem;
+}
+
+.marcados strong {
+  color: var(--tinta);
+}
+
+.botao-excel {
+  min-height: 40px;
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  border-color: color-mix(in srgb, var(--ok) 60%, var(--borda-forte));
+}
+
+.botao-excel[aria-expanded="true"] {
+  background: var(--superficie-3);
+  border-color: var(--ok);
+}
+
+.banner-selecao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--e3);
+  padding: var(--e2) var(--e4);
+  font-size: 0.9rem;
+  background: var(--acento-suave);
+  border: 1px solid color-mix(in srgb, var(--acento) 45%, transparent);
+  border-radius: var(--r);
+}
+
+.exportar {
+  display: grid;
+  gap: var(--e3);
+  padding: var(--e4);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-left: 4px solid var(--ok);
+  border-radius: var(--r-grande);
+}
+
+.exportar-topo {
+  display: flex;
+  align-items: center;
+}
+
+.exportar-intro {
+  max-width: 70ch;
+  color: var(--tinta-2);
+  font-size: 0.9rem;
+}
+
+.exportar-opcoes {
+  display: grid;
+  gap: var(--e2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.exportar-opcoes legend {
+  margin-bottom: var(--e2);
+  padding: 0;
+  color: var(--tinta-2);
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+
+.opcao {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e3);
+  padding: var(--e2) var(--e3);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  background: var(--superficie-2);
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.opcao input {
+  margin-top: 2px;
+}
+
+.opcao:has(input:checked) {
+  background: var(--acento-suave);
+  border-color: color-mix(in srgb, var(--acento) 60%, transparent);
+}
+
+.opcao-sem {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.opcao small {
+  display: block;
+  margin-top: 2px;
+  color: var(--tinta-3);
+  font-size: 0.8rem;
+}
+
+.exportar-acao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e2) var(--e4);
+}
+
+.exportar-acao .botao-primario:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.exportar-nome {
+  color: var(--tinta-3);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.exportar-estado {
+  display: flex;
+  align-items: center;
+  gap: var(--e2);
+  min-height: 1.5em;
+  color: var(--tinta-2);
+  font-size: 0.9rem;
+}
+
+.exportar-estado .icone {
+  color: var(--ok-tinta);
+}
+
+.exportar-demo {
+  padding: var(--e2) var(--e3);
+  color: var(--tinta-2);
+  font-size: 0.85rem;
+  border: 1px dashed var(--borda-forte);
+  border-radius: 10px;
+}
+
+.exportar-demo strong {
+  color: var(--tinta);
 }
 
 /* ---------- carregando e erro */
@@ -1952,15 +2168,26 @@ section[id] {
     margin-top: 4px;
   }
 
+  .edital-lado {
+    display: grid;
+    align-content: start;
+    justify-items: center;
+    gap: 0;
+    align-self: start;
+  }
+
+  .edital-marca {
+    margin: -6px 0 -2px;
+  }
+
   .prazo-bloco {
     display: grid;
     align-content: start;
     justify-items: center;
     gap: 2px;
-    width: auto;
+    width: 100%;
     padding: var(--e2) 4px;
     text-align: center;
-    align-self: start;
   }
 
   .filtros-corpo {

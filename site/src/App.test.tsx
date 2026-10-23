@@ -3,9 +3,13 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { geraPlanilha } from "./lib/excel";
 import { diaBR, diaCurto, somaDias } from "./lib/tempo";
 import type { Edital, Painel } from "./lib/types";
 import { edital, painel } from "./testes/modelos";
+
+// o arquivo do Excel é testado em lib/excel.test.ts; aqui só importa o que a tela pede e entrega
+vi.mock("./lib/excel", () => ({ geraPlanilha: vi.fn(async () => new Blob(["xlsx"])) }));
 
 /** O App usa a hora de verdade; por isso os prazos dos testes são montados a partir dela. */
 const emHoras = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
@@ -39,13 +43,24 @@ function cartoes(): HTMLElement[] {
     .filter((li) => li.classList.contains("edital"));
 }
 
+/** Nomes dos arquivos que a página mandou o navegador baixar. */
+const baixados: string[] = [];
+
 beforeEach(() => {
   vi.unstubAllGlobals();
+  baixados.length = 0;
+  vi.mocked(geraPlanilha).mockClear();
+  URL.createObjectURL = vi.fn(() => "blob:teste");
+  URL.revokeObjectURL = vi.fn();
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+    baixados.push(this.download);
+  });
 });
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("App", () => {
@@ -492,6 +507,184 @@ describe("App", () => {
     // e cada gráfico tem a sua frase
     expect(screen.getByText("A faixa mais cheia é “Até 3 dias”, com 2 de 3 (67%). 2 acabam em até 3 dias.")).toBeTruthy();
     expect(screen.getByText(/^SP lidera, com 2 editais \(67%\)\. .+ é a cidade com mais editais: 2\.$/)).toBeTruthy();
+  });
+
+  describe("marcar editais e exportar para o Excel", () => {
+    const quatro = () =>
+      dados([
+        edital({ prazo: emHoras(30), uf: "SP", objeto: "SP primeiro" }),
+        edital({ prazo: emHoras(40), uf: "SP", objeto: "SP segundo" }),
+        edital({ prazo: emHoras(50), uf: "MG", objeto: "MG primeiro" }),
+        edital({ prazo: emHoras(60), uf: "MG", objeto: "MG segundo", combina: "parcial", nota: 45 }),
+      ]);
+    const caixas = () => screen.getAllByRole("checkbox", { name: /^Marcar para exportar/ }) as HTMLInputElement[];
+    const idsDe = (n: number) => vi.mocked(geraPlanilha).mock.calls[n]![0].map((e) => e.objeto);
+
+    it("marcar um cartão conta; 'Marcar os N que aparecem' marca todos e de novo desmarca", async () => {
+      respondeCom(resposta(dados([edital({ prazo: emHoras(30) }), edital({ prazo: emHoras(40) }), edital({ prazo: emHoras(50) })])));
+      render(<App />);
+      await screen.findByText("Nenhum marcado");
+
+      fireEvent.click(caixas()[0]!);
+      expect(document.querySelector(".marcados")!.textContent).toContain("1 marcado");
+      expect(document.querySelectorAll(".edital-marcado")).toHaveLength(1);
+      const mestra = screen.getByLabelText(/^Marcar os 3/) as HTMLInputElement;
+      expect(mestra.checked).toBe(false);
+      expect(mestra.indeterminate).toBe(true); // alguns marcados
+
+      fireEvent.click(mestra);
+      expect(caixas().every((c) => c.checked)).toBe(true);
+      expect(mestra.checked).toBe(true);
+      expect(mestra.indeterminate).toBe(false);
+
+      fireEvent.click(mestra); // marcados todos: clicar desmarca
+      expect(caixas().some((c) => c.checked)).toBe(false);
+      expect(screen.getByText("Nenhum marcado")).toBeTruthy();
+    });
+
+    it("com mais editais que cabem na página, oferece marcar todos os da lista e desmarcar tudo", async () => {
+      const muitos = Array.from({ length: 35 }, (_, i) => edital({ prazo: emHoras(24 + i), objeto: `Obra ${i}` }));
+      respondeCom(resposta(dados(muitos)));
+      render(<App />);
+      const mestra = (await screen.findByLabelText(/^Marcar os 30 que aparecem/)) as HTMLInputElement;
+
+      fireEvent.click(mestra);
+      expect(screen.getByText(/Os 30 que aparecem estão marcados/)).toBeTruthy();
+      expect(caixas().filter((c) => c.checked)).toHaveLength(30);
+
+      fireEvent.click(screen.getByRole("button", { name: "Marcar todos os 35 da lista" }));
+      expect(screen.getByText(/Todos os 35 da lista estão marcados, até os que ainda não aparecem/)).toBeTruthy();
+      expect(document.querySelector(".marcados")!.textContent).toContain("35 marcados");
+
+      fireEvent.click(screen.getAllByRole("button", { name: "Desmarcar tudo" })[0]!);
+      expect(screen.getByText("Nenhum marcado")).toBeTruthy();
+      expect(caixas().some((c) => c.checked)).toBe(false);
+    });
+
+    it("exporta tudo o que está filtrado sem marcar nada, na ordem da lista, dizendo quais filtros estavam ligados", async () => {
+      respondeCom(resposta(quatro()));
+      render(<App />);
+      await screen.findByText("SP segundo");
+      fireEvent.click(screen.getByRole("button", { name: "SP" }));
+
+      fireEvent.click(screen.getByRole("button", { name: /Exportar para Excel/ }));
+      const filtrados = screen.getByRole("radio", { name: /Todos os que estão na lista/ }) as HTMLInputElement;
+      expect(filtrados.checked).toBe(true);
+      expect(filtrados.closest("label")!.textContent).toContain("(2)");
+      expect(filtrados.closest("label")!.textContent).toContain("Filtros ligados: Estado: SP");
+      expect((screen.getByRole("radio", { name: /Só os que marquei/ }) as HTMLInputElement).disabled).toBe(true);
+      expect(screen.getByRole("radio", { name: /Todos os editais abertos do painel/ }).closest("label")!.textContent).toContain("(4)");
+
+      fireEvent.click(screen.getByRole("button", { name: /Baixar arquivo/ }));
+      await screen.findByText(/Pronto: 2 editais em/);
+      expect(idsDe(0)).toEqual(["SP primeiro", "SP segundo"]);
+      const contexto = vi.mocked(geraPlanilha).mock.calls[0]![1];
+      expect(contexto.escopo).toBe("filtrados");
+      expect(contexto.filtros).toEqual(["Estado: SP"]);
+      expect(contexto.perfil).toBe("Construtora de médio porte");
+      expect(baixados).toHaveLength(1);
+      expect(baixados[0]).toMatch(/^radar-pncp-\d{4}-\d\d-\d\d-filtro\.xlsx$/);
+    });
+
+    it("exporta só os marcados, mesmo depois de o filtro esconder alguns deles", async () => {
+      respondeCom(resposta(quatro()));
+      render(<App />);
+      await screen.findByText("SP segundo");
+      fireEvent.click(caixas()[0]!); // SP primeiro
+      fireEvent.click(caixas()[2]!); // MG primeiro
+      fireEvent.click(screen.getByRole("button", { name: "MG" })); // o filtro esconde "SP primeiro"
+
+      fireEvent.click(screen.getByRole("button", { name: /Exportar para Excel/ }));
+      const marcados = screen.getByRole("radio", { name: /Só os que marquei/ }) as HTMLInputElement;
+      expect(marcados.checked).toBe(true); // com algo marcado, é a escolha que já vem ligada
+      expect(marcados.closest("label")!.textContent).toContain("(2)");
+
+      fireEvent.click(screen.getByRole("button", { name: /Baixar arquivo/ }));
+      await screen.findByText(/Pronto: 2 editais em/);
+      expect(idsDe(0)).toEqual(["SP primeiro", "MG primeiro"]);
+      expect(vi.mocked(geraPlanilha).mock.calls[0]![1].escopo).toBe("selecionados");
+      expect(baixados[0]).toMatch(/-selecionados\.xlsx$/);
+    });
+
+    it("se o painel já está aberto e a pessoa marca um edital, 'só os que marquei' passa a ser a escolha", async () => {
+      respondeCom(resposta(quatro()));
+      render(<App />);
+      await screen.findByText("SP segundo");
+      fireEvent.click(screen.getByRole("button", { name: /Exportar para Excel/ }));
+      expect((screen.getByRole("radio", { name: /Todos os que estão na lista/ }) as HTMLInputElement).checked).toBe(true);
+
+      fireEvent.click(caixas()[1]!);
+      expect((screen.getByRole("radio", { name: /Só os que marquei/ }) as HTMLInputElement).checked).toBe(true);
+
+      fireEvent.click(screen.getByRole("radio", { name: /Todos os que estão na lista/ })); // escolha da pessoa vale
+      fireEvent.click(caixas()[2]!); // marcar mais um não muda o que ela escolheu
+      expect((screen.getByRole("radio", { name: /Todos os que estão na lista/ }) as HTMLInputElement).checked).toBe(true);
+    });
+
+    it("'todos do painel' ignora o filtro e inclui os que combinam só em parte", async () => {
+      respondeCom(resposta(quatro()));
+      render(<App />);
+      await screen.findByText("SP segundo");
+      fireEvent.click(screen.getByRole("button", { name: "SP" }));
+
+      fireEvent.click(screen.getByRole("button", { name: /Exportar para Excel/ }));
+      fireEvent.click(screen.getByRole("radio", { name: /Todos os editais abertos do painel/ }));
+      fireEvent.click(screen.getByRole("button", { name: /Baixar arquivo/ }));
+      await screen.findByText(/Pronto: 4 editais em/);
+      expect(idsDe(0)).toEqual(["SP primeiro", "SP segundo", "MG primeiro", "MG segundo"]);
+      expect(baixados[0]).toMatch(/-todos\.xlsx$/);
+    });
+
+    it("sem nada marcado e sem resultado no filtro, só resta exportar o painel inteiro", async () => {
+      respondeCom(resposta(quatro()));
+      render(<App />);
+      await screen.findByText("SP segundo");
+      fireEvent.change(screen.getByLabelText("Buscar"), { target: { value: "zzz" } });
+
+      fireEvent.click(screen.getByRole("button", { name: /Exportar para Excel/ }));
+      expect((screen.getByRole("radio", { name: /Todos os que estão na lista/ }) as HTMLInputElement).disabled).toBe(true);
+      expect((screen.getByRole("radio", { name: /Todos os editais abertos do painel/ }) as HTMLInputElement).checked).toBe(true);
+    });
+
+    it("avisa quando o arquivo não saiu e deixa tentar de novo", async () => {
+      respondeCom(resposta(quatro()));
+      vi.mocked(geraPlanilha).mockRejectedValueOnce(new Error("sem memória"));
+      render(<App />);
+      await screen.findByText("SP segundo");
+      fireEvent.click(screen.getByRole("button", { name: /Exportar para Excel/ }));
+
+      fireEvent.click(screen.getByRole("button", { name: /Baixar arquivo/ }));
+      await screen.findByText(/Não consegui gerar o arquivo agora/);
+      expect(baixados).toHaveLength(0);
+
+      fireEvent.click(screen.getByRole("button", { name: /Baixar arquivo/ }));
+      await screen.findByText(/Pronto: 3 editais em/);
+      expect(baixados).toHaveLength(1);
+    });
+
+    it("diz, no painel e no rodapé, que é uma demonstração e não um limite", async () => {
+      respondeCom(resposta(quatro()));
+      render(<App />);
+      await screen.findByText("SP segundo");
+      expect(screen.getAllByText(/É uma demonstração, não um limite/)).toHaveLength(1); // rodapé
+      fireEvent.click(screen.getByRole("button", { name: /Exportar para Excel/ }));
+      expect(screen.getAllByText(/É uma demonstração, não um limite/)).toHaveLength(2); // rodapé e painel
+      expect(screen.getAllByText(/esfera do órgão, o modo de disputa e o número do processo/)).toHaveLength(2);
+      expect(screen.getByText("Perfil de demonstração.")).toBeTruthy(); // os avisos de sempre continuam
+      expect(screen.getByText("Confira sempre o edital no PNCP.")).toBeTruthy();
+    });
+
+    it("o botão de exportar abre e fecha o painel e diz isso para quem usa leitor de tela", async () => {
+      respondeCom(resposta(quatro()));
+      render(<App />);
+      const botao = await screen.findByRole("button", { name: /Exportar para Excel/ });
+      expect(botao.getAttribute("aria-expanded")).toBe("false");
+      fireEvent.click(botao);
+      expect(botao.getAttribute("aria-expanded")).toBe("true");
+      expect(document.getElementById(botao.getAttribute("aria-controls")!)).toBeTruthy();
+      fireEvent.click(botao);
+      expect(document.getElementById(botao.getAttribute("aria-controls")!)).toBeNull();
+    });
   });
 
   describe("painel do robô", () => {

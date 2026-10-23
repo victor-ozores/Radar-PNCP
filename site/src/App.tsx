@@ -131,7 +131,13 @@ export function App() {
               />
               <PainelRobo robo={painel.robo} geradoEm={painel.gerado_em} agora={agora} />
               <Panorama editais={fortes} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
-              <Lista editais={abertos} agora={agora} filtro={filtro} aoMudar={mudaFiltro} />
+              <Lista
+                editais={abertos}
+                agora={agora}
+                filtro={filtro}
+                aoMudar={mudaFiltro}
+                origem={{ geradoEm: painel.gerado_em, perfil: painel.perfil.nome }}
+              />
             </>
           )}
         </main>

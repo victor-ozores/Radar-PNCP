@@ -1,16 +1,11 @@
-import { Fragment } from "react";
+import { Fragment, memo } from "react";
 
 import { SUAVE, m } from "../animacao";
 import { formataValor, limpaObjeto, localidade, nomeDoOrgao, suavizaCaixa, valorConfiavel } from "../lib/formatos";
 import { dataEHora, diaDoMes, diasAte, emQuantosDias, horaCurta, mesCurto, dataCurta } from "../lib/tempo";
-import type { Combina, Edital, Repetido } from "../lib/types";
+import { ROTULO_COMBINA } from "../lib/painel";
+import type { Edital, Repetido } from "../lib/types";
 import { Icone } from "./Icone";
-
-const SELO: Record<Combina, string> = {
-  muito: "Combina muito",
-  combina: "Combina",
-  parcial: "Combina em parte",
-};
 
 /** "nº 34/2026", ou "outro registro" quando o órgão não preencheu um número que preste. */
 const rotuloDoRepetido = (r: Repetido) => (r.numero ? `nº ${r.numero}` : "outro registro");
@@ -23,49 +18,70 @@ function urgenciaDe(dias: number): Urgencia {
   return "calmo";
 }
 
-/** `posicao`: lugar do cartão na página atual da lista; os primeiros entram em sequência, os outros juntos. */
-export function CartaoEdital({ edital: e, agora, posicao }: { edital: Edital; agora: Date; posicao: number }) {
+interface Props {
+  edital: Edital;
+  agora: Date;
+  /** Lugar do cartão na página atual da lista; os primeiros entram em sequência, os outros juntos. */
+  posicao: number;
+  /** Marcado para levar ao Excel. */
+  marcado: boolean;
+  aoMarcar: (id: string) => void;
+}
+
+function CartaoEditalSemMemo({ edital: e, agora, posicao, marcado, aoMarcar }: Props) {
   const dias = diasAte(e.prazo, agora);
   const urgencia = urgenciaDe(dias);
   const abreDepois = e.abertura !== null && Date.parse(e.abertura) > agora.getTime();
   const semValor = valorConfiavel(e.valor) === null;
   const onde = localidade(e.municipio, e.uf);
+  const objeto = suavizaCaixa(limpaObjeto(e.objeto));
+  const resumoDoObjeto = objeto.length > 80 ? `${objeto.slice(0, 80)}…` : objeto;
 
   return (
     <m.li
-      className="edital"
+      className={`edital ${marcado ? "edital-marcado" : ""}`}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: SUAVE, delay: Math.min(posicao, 8) * 0.035 }}
     >
-      <div className={`prazo-bloco prazo-${urgencia}`}>
-        <span className="so-leitor">
-          Propostas até {dataEHora(e.prazo, agora)} ({emQuantosDias(e.prazo, agora)}).
-        </span>
-        <span aria-hidden="true" className="prazo-dia">
-          {diaDoMes(e.prazo)}
-        </span>
-        <span aria-hidden="true" className="prazo-mes">
-          {mesCurto(e.prazo)}
-        </span>
-        <span aria-hidden="true" className="prazo-hora">
-          {horaCurta(e.prazo)}
-        </span>
-        <span aria-hidden="true" className="prazo-falta">
-          {emQuantosDias(e.prazo, agora)}
-        </span>
+      <div className="edital-lado">
+        <label className="edital-marca">
+          <input
+            type="checkbox"
+            checked={marcado}
+            onChange={() => aoMarcar(e.id)}
+            aria-label={`Marcar para exportar: ${resumoDoObjeto}`}
+          />
+        </label>
+        <div className={`prazo-bloco prazo-${urgencia}`}>
+          <span className="so-leitor">
+            Propostas até {dataEHora(e.prazo, agora)} ({emQuantosDias(e.prazo, agora)}).
+          </span>
+          <span aria-hidden="true" className="prazo-dia">
+            {diaDoMes(e.prazo)}
+          </span>
+          <span aria-hidden="true" className="prazo-mes">
+            {mesCurto(e.prazo)}
+          </span>
+          <span aria-hidden="true" className="prazo-hora">
+            {horaCurta(e.prazo)}
+          </span>
+          <span aria-hidden="true" className="prazo-falta">
+            {emQuantosDias(e.prazo, agora)}
+          </span>
+        </div>
       </div>
 
       <div className="edital-corpo">
         <div className="edital-selos">
-          <span className={`selo selo-${e.combina}`}>{SELO[e.combina]}</span>
+          <span className={`selo selo-${e.combina}`}>{ROTULO_COMBINA[e.combina]}</span>
           {e.registro_de_precos && <span className="etiqueta etiqueta-destaque">Registro de preços</span>}
           {abreDepois && e.abertura && (
             <span className="etiqueta etiqueta-destaque">Propostas abrem em {dataCurta(e.abertura)}</span>
           )}
         </div>
 
-        <p className="edital-objeto">{suavizaCaixa(limpaObjeto(e.objeto))}</p>
+        <p className="edital-objeto">{objeto}</p>
 
         <p className="edital-meta">
           <span className="meta-item">
@@ -135,3 +151,6 @@ export function CartaoEdital({ edital: e, agora, posicao }: { edital: Edital; ag
     </m.li>
   );
 }
+
+/** Marcar um cartão não refaz os outros 29 (nem a animação de entrada deles). */
+export const CartaoEdital = memo(CartaoEditalSemMemo);

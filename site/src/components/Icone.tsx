@@ -79,6 +79,13 @@ const DESENHOS = {
     </>
   ),
   filtro: <path d="M4 5h16l-6.2 7.4V19l-3.6-1.8v-4.8z" />,
+  planilha: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M4 10h16M4 15h16M10 4v16" />
+    </>
+  ),
+  baixar: <path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" />,
   seta: <path d="M5 12h14M13 6l6 6-6 6" />,
   github: (
     <path

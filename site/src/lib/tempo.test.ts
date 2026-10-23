@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import { AGORA } from "../testes/modelos";
 import {
+  comoRelogio,
   dataCurta,
+  dataEHoraCompleta,
   dataEHora,
   diaBR,
   diaCurto,
@@ -102,5 +104,18 @@ describe("há quanto tempo", () => {
 
   it("horasDesde", () => {
     expect(horasDesde(AGORA, depois(90))).toBe(1.5);
+  });
+});
+
+describe("relógio de Brasília para o Excel", () => {
+  it("guarda o dia e a hora vistos em Brasília, não em UTC", () => {
+    expect(comoRelogio("2026-10-26T07:59:00-03:00").toISOString()).toBe("2026-10-26T07:59:00.000Z");
+    expect(comoRelogio("2026-10-26T10:59:00Z").toISOString()).toBe("2026-10-26T07:59:00.000Z");
+    expect(comoRelogio("2026-10-27T00:00:00-03:00").toISOString()).toBe("2026-10-27T00:00:00.000Z");
+  });
+
+  it("escreve a data e a hora completas", () => {
+    expect(dataEHoraCompleta("2026-10-23T14:05:00-03:00")).toBe("23/10/2026 14:05");
+    expect(dataEHoraCompleta("2026-01-02T00:07:00-03:00")).toBe("02/01/2026 00:07");
   });
 });

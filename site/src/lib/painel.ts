@@ -16,6 +16,13 @@ export class PainelInvalido extends Error {
 
 const COMBINA: readonly Combina[] = ["muito", "combina", "parcial"];
 
+/** Como o robô diz o quanto o edital combina com o perfil (cartão da lista e arquivo do Excel). */
+export const ROTULO_COMBINA: Record<Combina, string> = {
+  muito: "Combina muito",
+  combina: "Combina",
+  parcial: "Combina em parte",
+};
+
 /** Como o edital chega no arquivo: `link` e `repetidos` ainda não foram conferidos. */
 type EditalBruto = Omit<Edital, "link" | "repetidos" | "numero"> & {
   link?: unknown;

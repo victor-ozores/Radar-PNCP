@@ -18,6 +18,25 @@ const HORA = new Intl.DateTimeFormat("pt-BR", {
 const DIA_SEMANA = new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, weekday: "short" });
 const MES_CURTO = new Intl.DateTimeFormat("pt-BR", { timeZone: FUSO, month: "short" });
 
+const RELOGIO = new Intl.DateTimeFormat("en-CA", {
+  timeZone: FUSO,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+const DATA_E_HORA = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: FUSO,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
 const MS_DIA = 86_400_000;
 
 export function paraData(iso: string | Date): Date {
@@ -28,6 +47,20 @@ export function paraData(iso: string | Date): Date {
 export function diaBR(d: Date): string {
   const partes = Object.fromEntries(ANO_MES_DIA.formatToParts(d).map((p) => [p.type, p.value]));
   return `${partes.year}-${partes.month}-${partes.day}`;
+}
+
+/**
+ * O relógio de Brasília como um `Date` cujos campos UTC são o dia e a hora que se vê em Brasília. O Excel não
+ * guarda fuso: guarda "26/10 07:59" e mostra isso, igual em qualquer computador.
+ */
+export function comoRelogio(iso: string | Date): Date {
+  const p = Object.fromEntries(RELOGIO.formatToParts(paraData(iso)).map((x) => [x.type, x.value]));
+  return new Date(Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour), Number(p.minute)));
+}
+
+/** "23/10/2026 14:05", no horário de Brasília. */
+export function dataEHoraCompleta(iso: string | Date): string {
+  return DATA_E_HORA.format(paraData(iso)).replace(", ", " ");
 }
 
 /** Quantos dias de calendário (em Brasília) faltam de `agora` até `alvo`. 0 = hoje; negativo = passou. */

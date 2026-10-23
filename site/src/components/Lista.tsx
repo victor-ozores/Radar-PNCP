@@ -1,11 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
-import { TAMANHO_PAGINA } from "../config";
+import { PNCP_URL, REPO_URL, TAMANHO_PAGINA } from "../config";
+import { baixaArquivo } from "../lib/baixar";
+import { geraPlanilha } from "../lib/excel";
+import { editaisDoEscopo, nomeDoArquivo, type Escopo } from "../lib/exportar";
 import { formataInteiro, plural } from "../lib/formatos";
 import { filtrar, filtroLimpo, filtrosAtivos, intervaloDisponivel, type Filtro, type Ordem } from "../lib/painel";
+import { SEM_MARCADOS, alterna, desmarca, marca, situacaoDoGrupo, type Marcados } from "../lib/selecao";
 import type { Edital } from "../lib/types";
 import { CartaoEdital } from "./CartaoEdital";
 import { Dica } from "./Dica";
+import { BarraSelecao, PainelExportar } from "./Exportar";
 import { Filtros, FiltrosAtivos } from "./Filtros";
 
 interface Props {
@@ -14,6 +19,8 @@ interface Props {
   agora: Date;
   filtro: Filtro;
   aoMudar: (filtro: Filtro) => void;
+  /** O que o arquivo do Excel diz sobre a origem dos dados. */
+  origem: { geradoEm: string; perfil: string };
 }
 
 const ORDENS: { valor: Ordem; rotulo: string }[] = [
@@ -22,8 +29,11 @@ const ORDENS: { valor: Ordem; rotulo: string }[] = [
   { valor: "valor", rotulo: "Maior valor" },
 ];
 
-export function Lista({ editais, agora, filtro, aoMudar }: Props) {
+export function Lista({ editais, agora, filtro, aoMudar, origem }: Props) {
   const [visiveis, setVisiveis] = useState(TAMANHO_PAGINA);
+  const [marcados, setMarcados] = useState<Marcados>(SEM_MARCADOS);
+  const [exportando, setExportando] = useState(false);
+  const idDoPainel = useId();
 
   const ufs = useMemo(
     () => [...new Set(editais.map((e) => e.uf).filter((u): u is string => !!u))].sort(),
@@ -42,6 +52,49 @@ export function Lista({ editais, agora, filtro, aoMudar }: Props) {
 
   const filtrado = filtrosAtivos(filtro).length > 0;
   const mostrando = Math.min(visiveis, achados.length);
+
+  // ---- marcar para o Excel
+  const idsQueAparecem = useMemo(() => achados.slice(0, visiveis).map((e) => e.id), [achados, visiveis]);
+  const idsDoFiltro = useMemo(() => achados.map((e) => e.id), [achados]);
+  /** Marcado que já saiu do painel (o prazo passou) não conta. */
+  const quantosMarcados = useMemo(
+    () => (marcados.size === 0 ? 0 : editais.reduce((n, e) => n + (marcados.has(e.id) ? 1 : 0), 0)),
+    [marcados, editais],
+  );
+  const naPagina = situacaoDoGrupo(marcados, idsQueAparecem);
+  const noFiltro = situacaoDoGrupo(marcados, idsDoFiltro);
+
+  const marcaEdital = useCallback((id: string) => setMarcados((m) => alterna(m, id)), []);
+  const marcaPagina = () =>
+    setMarcados((m) => (situacaoDoGrupo(m, idsQueAparecem) === "todos" ? desmarca(m, idsQueAparecem) : marca(m, idsQueAparecem)));
+  const marcaFiltro = () => setMarcados((m) => marca(m, idsDoFiltro));
+  const limpaMarcados = () => setMarcados(SEM_MARCADOS);
+
+  // ---- exportar
+  const [painelAberto, setPainelAberto] = useState(false);
+
+  async function exporta(escopo: Escopo): Promise<{ nome: string; quantos: number }> {
+    if (exportando) throw new Error("já está gerando");
+    setExportando(true);
+    try {
+      const lista = editaisDoEscopo(escopo, { marcados, filtrados: achados, todos: editais }, filtro.ordem);
+      const arquivo = await geraPlanilha(lista, {
+        agora: new Date(),
+        geradoEm: origem.geradoEm,
+        perfil: origem.perfil,
+        escopo,
+        filtros: filtrosAtivos(filtro).map((f) => f.texto),
+        painelUrl: window.location.origin + window.location.pathname,
+        repoUrl: REPO_URL,
+        pncpUrl: PNCP_URL,
+      });
+      const nome = nomeDoArquivo(escopo, new Date());
+      baixaArquivo(arquivo, nome);
+      return { nome, quantos: lista.length };
+    } finally {
+      setExportando(false);
+    }
+  }
 
   return (
     <section className="lista" id="editais" aria-labelledby="lista-titulo">
@@ -90,10 +143,46 @@ export function Lista({ editais, agora, filtro, aoMudar }: Props) {
 
           <FiltrosAtivos filtro={filtro} aoMudar={aoMudar} />
 
+          {editais.length > 0 && (
+            <BarraSelecao
+              aparecem={idsQueAparecem.length}
+              filtrados={achados.length}
+              naPagina={naPagina}
+              noFiltro={noFiltro}
+              marcados={quantosMarcados}
+              aoMarcarPagina={marcaPagina}
+              aoMarcarFiltro={marcaFiltro}
+              aoLimpar={limpaMarcados}
+              exportarAberto={painelAberto}
+              aoAlternarExportar={() => setPainelAberto((v) => !v)}
+              idDoPainel={idDoPainel}
+              exportar={
+                painelAberto && (
+                  <PainelExportar
+                    id={idDoPainel}
+                    marcados={quantosMarcados}
+                    filtrados={achados.length}
+                    todos={editais.length}
+                    filtros={filtrosAtivos(filtro).map((f) => f.texto)}
+                    agora={agora}
+                    aoExportar={exporta}
+                  />
+                )
+              }
+            />
+          )}
+
           {achados.length > 0 ? (
             <ul className="editais">
               {achados.slice(0, visiveis).map((e, i) => (
-                <CartaoEdital key={e.id} edital={e} agora={agora} posicao={i % TAMANHO_PAGINA} />
+                <CartaoEdital
+                  key={e.id}
+                  edital={e}
+                  agora={agora}
+                  posicao={i % TAMANHO_PAGINA}
+                  marcado={marcados.has(e.id)}
+                  aoMarcar={marcaEdital}
+                />
               ))}
             </ul>
           ) : (

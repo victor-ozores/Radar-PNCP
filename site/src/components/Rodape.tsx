@@ -1,6 +1,8 @@
 import { PNCP_URL, REPO_URL } from "../config";
 import { VALOR_MINIMO_CONFIAVEL, formataValor } from "../lib/formatos";
+import { AVISO_DEMONSTRACAO } from "../lib/exportar";
 import type { Perfil } from "../lib/types";
+
 
 export function Rodape({ perfil }: { perfil: Perfil | null }) {
   return (
@@ -15,6 +17,9 @@ export function Rodape({ perfil }: { perfil: Perfil | null }) {
         <li>
           <strong>Confira sempre o edital no PNCP.</strong> O robô lê os dados públicos uma vez por dia e
           pode errar: prazo que mudou, edital suspenso ou excluído, texto que o filtro não entende.
+        </li>
+        <li>
+          <strong>É uma demonstração, não um limite.</strong> {AVISO_DEMONSTRACAO}
         </li>
       </ul>
 
