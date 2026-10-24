@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 
 import { PNCP_URL, REPO_URL, TAMANHO_PAGINA } from "../config";
 import { baixaArquivo } from "../lib/baixar";
@@ -47,8 +47,13 @@ export function Lista({ editais, agora, filtro, aoMudar, origem }: Props) {
   const datas = useMemo(() => intervaloDisponivel(editais), [editais]);
   const achados = useMemo(() => filtrar(editais, filtro), [editais, filtro]);
 
-  // mudou o filtro: volta a mostrar só a primeira página
-  useEffect(() => setVisiveis(TAMANHO_PAGINA), [filtro]);
+  // mudou o filtro: volta a mostrar só a primeira página. Ajuste na própria renderização, não em efeito:
+  // um efeito que roda depois do primeiro clique em "Mostrar mais" desfaria o clique
+  const [filtroDaPagina, setFiltroDaPagina] = useState(filtro);
+  if (filtro !== filtroDaPagina) {
+    setFiltroDaPagina(filtro);
+    setVisiveis(TAMANHO_PAGINA);
+  }
 
   const filtrado = filtrosAtivos(filtro).length > 0;
   const mostrando = Math.min(visiveis, achados.length);

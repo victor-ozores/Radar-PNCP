@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { m, surgir } from "../animacao";
 import { formataInteiro } from "../lib/formatos";
@@ -52,7 +52,13 @@ function CampoData({
   aoMudar: (valor: string) => void;
 }) {
   const [rascunho, setRascunho] = useState(valor);
-  useEffect(() => setRascunho(valor), [valor]); // atalhos e "limpar" mudam o valor por fora
+  // atalhos e "limpar" mudam o valor por fora: o rascunho acompanha. Ajuste na própria renderização, não em
+  // efeito: um efeito que roda depois da primeira digitação apagaria o que a pessoa acabou de escrever
+  const [valorVisto, setValorVisto] = useState(valor);
+  if (valor !== valorVisto) {
+    setValorVisto(valor);
+    setRascunho(valor);
+  }
 
   return (
     <label className="campo-data">
