@@ -53,9 +53,9 @@ incluí-la no perfil.
   edital vem certa ("Ibirité"): em 22/10/2026, 356 dos 1.394 editais do painel tinham a cidade sem
   acento no nome do órgão. A tela e o Telegram copiam a grafia da cidade (`nome_do_orgao` em
   `normalize.py`, igual em `site/src/lib/formatos.ts`); o texto guardado não muda.
-* **O mesmo edital publicado duas vezes** (mesmo órgão, valor, prazo e texto): em 22/10/2026, 41 dos
-  1.338 editais que combinam tinham um gêmeo (cerca de 3%; entre todos os abertos, cerca de 5%).
-  Dos pares conferidos no PNCP, 2 de 3 estavam com os dois ativos (o órgão republica com outro
+* **O mesmo edital publicado duas vezes** (mesmo órgão, valor, texto e prazo, com até 1 minuto de
+  diferença): em 22/10/2026, 41 dos 1.338 editais que combinam tinham um gêmeo (cerca de 3%; entre
+  todos os abertos, cerca de 5%). Dos pares conferidos no PNCP, 2 de 3 estavam com os dois ativos (o órgão republica com outro
   número, por exemplo "34" e "34/2026REPUBLICADO", ou publica duas vezes em minutos) e em 1 o
   original tinha sido excluído (410). O painel e o Telegram mostram o edital uma vez, com o número e
   o link do outro (`repetidos.py`); no alerta, cada registro é conferido no PNCP antes, para o link
@@ -64,6 +64,16 @@ incluí-la no perfil.
   com o mesmo valor e prazo e textos bem diferentes ("brinquedos parquinho" e uma descrição longa de
   playground) que provavelmente são o mesmo edital, mas também há par com valor e prazo iguais e
   objetos sem relação alguma, então o texto precisa bater.
+  **Prazo com 1 minuto de diferença (24/10/2026):** a primeira versão da regra pedia o prazo igual
+  ao minuto e deixou passar um caso que apareceu duas vezes no Telegram (Telêmaco Borba/PR: dois
+  registros de R$ 3.515.339,29 com o mesmo texto, um com prazo 08:59 e o outro 09:00). Procurei no
+  painel daquele dia (1.367 editais) os pares com mesmo órgão, mesmo valor, o começo do texto igual
+  (60 caracteres) ou um texto dentro do outro e prazos a até 30 minutos que não estavam juntos:
+  eram 14. Seis eram esse caso de 1 minuto e passaram a ficar juntos. Os outros 8 seguem separados:
+  em 6 o texto não é o mesmo por inteiro (4 com o prazo igual e 2 a 1 minuto de diferença) e em 2 o
+  prazo está a 10 e a 30 minutos. Não aumentei a tolerância nem aceitei texto "quase igual", porque
+  o mesmo órgão pode publicar lotes ou processos diferentes com o mesmo valor, e mostrar um edital
+  duas vezes é um incômodo menor do que esconder um edital diferente.
 * **Consultoria, fiscalização, gerenciamento e projeto** não são obra, mas citam "obra" e
   "engenharia": eram 2,6% dos relevantes (38 de 1.448 em 22/10/2026). Têm regra própria em
   `scoring.py` (`servicos_intelectuais` no `config.yaml`).
