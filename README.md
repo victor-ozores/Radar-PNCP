@@ -34,7 +34,7 @@ O **PNCP** (Portal Nacional de Contratações Públicas) reúne as licitações 
 
 O Radar faz essa busca sozinho: um robô agendado lê o PNCP, dá uma nota de 0 a 100 a cada edital, separa os que combinam com o perfil de uma empresa, avisa no Telegram e mantém um painel público com os que ainda estão abertos. Construí o projeto para mostrar, na prática, uma automação agendada de ponta a ponta: roda sozinha todos os dias, sem servidor e sem custo, e **avisa quando para de funcionar**.
 
-**Resultado da execução de 23/10/2026:** 9.788 editais abertos acompanhados em SP, RJ, MG e PR, dos quais 1.317 passaram pelo filtro do perfil (1.243 combinam e 74 combinam só em parte). A rodada leu 2.244 registros do PNCP (1.059 novos) em 20 minutos, conferiu um a um 95 editais com prazo próximo (1 já estava excluído) e não teve nenhum bloqueio da API. Desde 20/10 o robô rodou sozinho 4 vezes (20, 21, 22 e 23/10), todas com sucesso.
+**Resultado da execução de 24/10/2026:** 10.386 editais abertos acompanhados em SP, RJ, MG e PR, dos quais 1.367 passaram pelo filtro do perfil (1.294 combinam e 73 combinam só em parte). A rodada leu 2.027 registros do PNCP (774 novos) em 18 minutos, conferiu um a um 100 editais com prazo próximo (1 estava diferente da lista e foi atualizado) e não teve nenhum bloqueio da API. Desde 20/10 o robô rodou sozinho 5 vezes (de 20 a 24/10), todas com sucesso.
 
 > O perfil que vem no projeto é de **demonstração**: uma construtora de médio porte (obras e manutenção predial) em SP, RJ, MG e PR. [Veja abaixo exatamente o que ele considera.](#-qual-perfil-está-configurado) O painel é um apoio, não uma recomendação: confira sempre o edital no PNCP.
 
@@ -129,28 +129,32 @@ Se uma empresa pedir outro filtro ou outra coluna, o dado entra e passa a aparec
 
 ## 📲 O que chega no Telegram
 
-Exemplo no formato atual, com os dados reais de 22/10/2026 (recortado):
+Exemplo no formato atual, com os dados reais de 24/10/2026 (recortado):
 
 ```
-📡 Radar PNCP · 22/10/2026
-87 editais novos combinam com o perfil, entre 812 novos lidos hoje. Os 10 que mais combinam:
+📡 Radar PNCP · 24/10/2026
+86 editais novos combinam com o perfil, entre 774 novos lidos hoje. Os 10 que mais combinam:
 🔎 Ver todos no painel
 
-Combina muito · Execução da obra de construção do novo Fórum da Comarca de São João do Paraíso.
-🏛 Tribunal de Justiça do Estado de Minas Gerais · 📍 Belo Horizonte / MG
-💰 R$ 11,7 mi · 📄 Concorrência Eletrônica nº 627/2026
-⏰ propostas até 16/11 09:00 (em 25 dias)
+Combina muito · Execução de Obras de Pavimentação Asfáltica na Estrada Água da Fonte, Objeto Vinculado ao Convênio Nº. 090/2026 – Secretaria de Infraestrutura e Logística –Seil com…
+🏛 Município de Farol · 📍 Farol / PR
+💰 R$ 13,5 mi · 📄 Concorrência Eletrônica nº 02/2026
+⏰ propostas de 26/10 até 11/11 08:55 (em 18 dias)
 🔗 PNCP · sistema de origem
 
 (...)
 
 ⏳ Prazos chegando (vencem em 2 a 7 dias)
 
-Combina · Contratação de Empresa Especializada para Execução de Serviços de Calçamento em Estradas Vicinais do Município, com Fornecimento de Materiais e Mão de Obra.
-🏛 Município de Brás Pires · 📍 Brás Pires / MG
-💰 R$ 245 mil · 📄 Concorrência Eletrônica nº 05/2026
-⏰ propostas até 26/10 07:59 (em 4 dias)
+Combina · Contratação de empresa especializada para execução da complementação da construção da Escola Municipal Tancredo Neves, no Bairro Dom Alexandre, município de Santa…
+🏛 Município de Santa Vitória · 📍 Santa Vitória / MG
+💰 R$ 1,1 mi · 📄 Concorrência Eletrônica nº CE 008/26
+⏰ propostas até 26/10 12:50 (em 2 dias)
 🔗 PNCP · sistema de origem
+
+(...)
+
+🔎 Mais 344 outros vencem nesse período: ver no painel
 ```
 
 Como ler: **Combina muito** é nota 80 ou mais, **Combina** vai de 60 a 79 e **Combina em parte** de 40 a 59. Abaixo de 40 o robô não avisa.
@@ -235,7 +239,7 @@ flowchart TD
 | Isolar o **cliente da API** em `pncp_client.py` | Só ele conhece URL e parâmetros; trocar de endpoint não espalha mudança |
 | Gravar por **upsert** em `numeroControlePNCP` | Editais mudam de situação e de prazo depois de publicados |
 | **Ler os alterados e conferir no PNCP** | Só a listagem por publicação nunca revê um edital já guardado. Detalhes em [`docs/qualidade-dados-pncp.md`](docs/qualidade-dados-pncp.md) |
-| **Juntar o edital repetido**, não esconder | O órgão às vezes publica o mesmo edital duas vezes (mesmo órgão, valor, prazo e texto). Os dois registros existem no PNCP, então o robô os junta num item só (o publicado por último é o principal) e mostra o número e o link do outro. No alerta, cada registro é conferido antes, para o link nunca apontar para um edital excluído |
+| **Juntar o edital repetido**, não esconder | O órgão às vezes publica o mesmo edital duas vezes (mesmo órgão, valor, texto e prazo, com até 1 minuto de diferença). Os dois registros existem no PNCP, então o robô os junta num item só (o publicado por último é o principal) e mostra o número e o link do outro. No alerta, cada registro é conferido antes, para o link nunca apontar para um edital excluído |
 | Dar a nota por **regras que se explicam**, sem IA | Cada nota vem com os motivos; dá para calibrar o perfil olhando o `--dry-run`. Regras firmes separam obra de compra, locação e serviço de escritório (consultoria, fiscalização, projeto); os casos reais estão em `tests/fixtures/casos_reais_filtro.json` |
 | Nunca deixar o **token do Telegram** vazar | O token vai na URL da API; os logs do `httpx` ficam em WARNING e as mensagens de erro passam por filtro |
 | Escrever o **texto em caixa normal** só na tela | Igual no Telegram e na página (mesmas regras em Python e TypeScript, com testes dos dois lados). O texto guardado não muda |
@@ -336,7 +340,7 @@ Há exemplos em [`queries/`](queries): editais abertos, volume por UF, qualidade
 
 Cada execução vira uma linha em `pipeline_runs`: início, fim, duração, status (`success`, `partial`, `failed`), janela, buscas e falhas, chamadas à API, 429, linhas lidas/novas/atualizadas/inválidas, prazos e situações corrigidos, relevantes novos, avisos de qualidade, alerta enviado e erro.
 
-Até 23/10/2026 o robô rodou sozinho 4 vezes (20, 21, 22 e 23/10), todas com sucesso. A de 23/10, a primeira com a conferência diária dos que vencem logo: 20 min, 228 chamadas à API, nenhum bloqueio 429, 2.244 editais lidos e 1.059 novos. A de 22/10 levou 14 min, com 129 chamadas. **Horas economizadas** seguem como estimativa, com premissas ainda não validadas, em [`docs/metodologia-horas.md`](docs/metodologia-horas.md).
+Até 24/10/2026 o robô rodou sozinho 5 vezes (de 20 a 24/10), todas com sucesso. A de 24/10: 18 min, 211 chamadas à API, nenhum bloqueio 429, 2.027 editais lidos e 774 novos. A de 23/10, a primeira com a conferência diária dos que vencem logo, levou 20 min, com 228 chamadas e 1.059 novos; a de 22/10 levou 14 min, com 129 chamadas. **Horas economizadas** seguem como estimativa, com premissas ainda não validadas, em [`docs/metodologia-horas.md`](docs/metodologia-horas.md).
 
 </details>
 
@@ -365,6 +369,7 @@ Até 23/10/2026 o robô rodou sozinho 4 vezes (20, 21, 22 e 23/10), todas com su
 * O robô só vê as UFs e modalidades do `config.yaml` (hoje SP, RJ, MG e PR; concorrência e pregão). Dispensas de licitação ficam de fora até o volume ser medido. O estado é o do órgão, que pode não ser o local da obra.
 * Obras abaixo de R$ 100 mil e acima de R$ 20 mi ficam fora, por desenho do perfil. Assuntos cujas palavras aparecem também fora de obra ("ponte", "drenagem", "esgotamento sanitário") foram testados e rejeitados por trazer lixo.
 * "Fornecimento e instalação de..." conta como serviço, mas pode ser equipamento. Um serviço sem relação pode passar quando o nome da secretaria traz "Obras" ou "Engenharia" no meio do texto.
+* A conferência diária dos que vencem em até 3 dias faz no máximo 100 consultas por execução, o que vence primeiro antes. Em 24/10 eram 197: os 100 primeiros foram conferidos e os outros 97 entram nos dias seguintes, conforme o prazo chega mais perto.
 * A conferência semanal cobre prazos de até 14 dias e no máximo 150 editais por execução; o resto é visto quando a listagem trouxer. A carga inicial e a página cobrem prazos de até 30 dias.
 * A página lê o arquivo direto do GitHub, que guarda uma cópia por até 5 minutos. Um prazo prorrogado só aparece depois da próxima execução; um edital que venceu some na hora.
 * Se o robô ficar parado mais de 1 dia, as prorrogações desse intervalo só voltam na conferência de domingo ou com um `backfill`.
