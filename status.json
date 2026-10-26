@@ -1,15 +1,15 @@
 {
   "execucoes_ok": 10,
   "execucoes_total": 10,
-  "gerado_em": "2026-10-25T11:32:50",
+  "gerado_em": "2026-10-25T21:59:57",
   "taxa_sucesso_30d_pct": 100.0,
   "ultima_execucao": {
     "error_message": null,
     "error_type": null,
-    "finished_at": "2026-10-25 11:32:50",
-    "modo": "daily",
-    "run_id": "20261025T112238-b8b559",
-    "started_at": "2026-10-25 11:22:38",
+    "finished_at": "2026-10-25 21:59:57",
+    "modo": "reconcile",
+    "run_id": "20261025T214426-49b6e7",
+    "started_at": "2026-10-25 21:44:26",
     "status": "success",
     "trigger": "schedule"
   },
