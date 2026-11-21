@@ -1,18 +1,18 @@
 {
-  "execucoes_ok": 36,
-  "execucoes_total": 36,
-  "gerado_em": "2026-11-20T15:59:31",
+  "execucoes_ok": 37,
+  "execucoes_total": 37,
+  "gerado_em": "2026-11-21T14:42:14",
   "taxa_sucesso_30d_pct": 100.0,
   "ultima_execucao": {
     "error_message": null,
     "error_type": null,
-    "finished_at": "2026-11-20 15:59:31",
+    "finished_at": "2026-11-21 14:42:14",
     "modo": "daily",
-    "run_id": "20261120T153637-3db0fa",
-    "started_at": "2026-11-20 15:36:37",
+    "run_id": "20261121T143208-f6b83e",
+    "started_at": "2026-11-21 14:32:08",
     "status": "success",
     "trigger": "schedule"
   },
-  "ultima_execucao_ok_em": "2026-11-20T15:59:31",
-  "ultima_execucao_ok_run_id": "20261120T153637-3db0fa"
+  "ultima_execucao_ok_em": "2026-11-21T14:42:14",
+  "ultima_execucao_ok_run_id": "20261121T143208-f6b83e"
 }
